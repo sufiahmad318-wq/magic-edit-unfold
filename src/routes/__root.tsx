@@ -138,6 +138,7 @@ function RootComponent() {
         <div className="pointer-events-none fixed bottom-0 left-1/3 w-72 h-72 rounded-full bg-fuchsia-600/15 blur-[100px] aurora-blob" />
 
         <div
+          data-path={pathname}
           className={
             fullBleed
               ? "relative w-full min-h-screen"
