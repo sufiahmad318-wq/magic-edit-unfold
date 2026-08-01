@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { BottomNav } from "@/components/BottomNav";
+import { runAutoBackupIfDue } from "@/lib/cloudStorage";
 
 function NotFoundComponent() {
   return (
@@ -77,21 +79,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "MagicEdit AI" },
+      { name: "description", content: "AI photo editing studio in your browser." },
+      { property: "og:title", content: "MagicEdit AI" },
+      { property: "og:description", content: "AI photo editing studio in your browser." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap",
+      },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],
   }),
   shellComponent: RootShell,
@@ -117,10 +123,23 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    void runAutoBackupIfDue();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="pointer-events-none fixed -top-32 -left-24 w-80 h-80 rounded-full bg-blue-600/25 blur-[100px] aurora-blob" />
+        <div className="pointer-events-none fixed top-1/3 -right-24 w-80 h-80 rounded-full bg-violet-600/25 blur-[110px] aurora-blob" />
+        <div className="pointer-events-none fixed bottom-0 left-1/3 w-72 h-72 rounded-full bg-fuchsia-600/15 blur-[100px] aurora-blob" />
+
+        <div className="relative max-w-xl sm:max-w-3xl mx-auto min-h-screen">
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <BottomNav />
+        </div>
+      </div>
     </QueryClientProvider>
   );
 }

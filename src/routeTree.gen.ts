@@ -10,33 +10,167 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AssetsRouteImport } from './routes/assets'
+import { Route as CloudRouteImport } from './routes/cloud'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as EditorIndexRouteImport } from './routes/editor/index'
+import { Route as ToolsIndexRouteImport } from './routes/tools/index'
+import { Route as ToolsToolIdRouteImport } from './routes/tools/$toolId'
+import { Route as EditorProjectIdIndexRouteImport } from './routes/editor/$projectId/index'
+import { Route as EditorProjectIdExportRouteImport } from './routes/editor/$projectId/export'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssetsRoute = AssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CloudRoute = CloudRouteImport.update({
+  id: '/cloud',
+  path: '/cloud',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditorIndexRoute = EditorIndexRouteImport.update({
+  id: '/editor/',
+  path: '/editor/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsIndexRoute = ToolsIndexRouteImport.update({
+  id: '/tools/',
+  path: '/tools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsToolIdRoute = ToolsToolIdRouteImport.update({
+  id: '/tools/$toolId',
+  path: '/tools/$toolId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditorProjectIdIndexRoute = EditorProjectIdIndexRouteImport.update({
+  id: '/editor/$projectId/',
+  path: '/editor/$projectId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditorProjectIdExportRoute = EditorProjectIdExportRouteImport.update({
+  id: '/editor/$projectId/export',
+  path: '/editor/$projectId/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/assets': typeof AssetsRoute
+  '/cloud': typeof CloudRoute
+  '/profile': typeof ProfileRoute
+  '/projects': typeof ProjectsRoute
+  '/templates': typeof TemplatesRoute
+  '/tools/$toolId': typeof ToolsToolIdRoute
+  '/editor/': typeof EditorIndexRoute
+  '/tools/': typeof ToolsIndexRoute
+  '/editor/$projectId/export': typeof EditorProjectIdExportRoute
+  '/editor/$projectId/': typeof EditorProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/assets': typeof AssetsRoute
+  '/cloud': typeof CloudRoute
+  '/profile': typeof ProfileRoute
+  '/projects': typeof ProjectsRoute
+  '/templates': typeof TemplatesRoute
+  '/tools/$toolId': typeof ToolsToolIdRoute
+  '/editor': typeof EditorIndexRoute
+  '/tools': typeof ToolsIndexRoute
+  '/editor/$projectId/export': typeof EditorProjectIdExportRoute
+  '/editor/$projectId': typeof EditorProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/assets': typeof AssetsRoute
+  '/cloud': typeof CloudRoute
+  '/profile': typeof ProfileRoute
+  '/projects': typeof ProjectsRoute
+  '/templates': typeof TemplatesRoute
+  '/tools/$toolId': typeof ToolsToolIdRoute
+  '/editor/': typeof EditorIndexRoute
+  '/tools/': typeof ToolsIndexRoute
+  '/editor/$projectId/export': typeof EditorProjectIdExportRoute
+  '/editor/$projectId/': typeof EditorProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/assets'
+    | '/cloud'
+    | '/profile'
+    | '/projects'
+    | '/templates'
+    | '/tools/$toolId'
+    | '/editor/'
+    | '/tools/'
+    | '/editor/$projectId/export'
+    | '/editor/$projectId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/assets'
+    | '/cloud'
+    | '/profile'
+    | '/projects'
+    | '/templates'
+    | '/tools/$toolId'
+    | '/editor'
+    | '/tools'
+    | '/editor/$projectId/export'
+    | '/editor/$projectId'
+  id:
+    | '__root__'
+    | '/'
+    | '/assets'
+    | '/cloud'
+    | '/profile'
+    | '/projects'
+    | '/templates'
+    | '/tools/$toolId'
+    | '/editor/'
+    | '/tools/'
+    | '/editor/$projectId/export'
+    | '/editor/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AssetsRoute: typeof AssetsRoute
+  CloudRoute: typeof CloudRoute
+  ProfileRoute: typeof ProfileRoute
+  ProjectsRoute: typeof ProjectsRoute
+  TemplatesRoute: typeof TemplatesRoute
+  ToolsToolIdRoute: typeof ToolsToolIdRoute
+  EditorIndexRoute: typeof EditorIndexRoute
+  ToolsIndexRoute: typeof ToolsIndexRoute
+  EditorProjectIdExportRoute: typeof EditorProjectIdExportRoute
+  EditorProjectIdIndexRoute: typeof EditorProjectIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +182,92 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assets': {
+      id: '/assets'
+      path: '/assets'
+      fullPath: '/assets'
+      preLoaderRoute: typeof AssetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cloud': {
+      id: '/cloud'
+      path: '/cloud'
+      fullPath: '/cloud'
+      preLoaderRoute: typeof CloudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor/': {
+      id: '/editor/'
+      path: '/editor'
+      fullPath: '/editor/'
+      preLoaderRoute: typeof EditorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/': {
+      id: '/tools/'
+      path: '/tools'
+      fullPath: '/tools/'
+      preLoaderRoute: typeof ToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/$toolId': {
+      id: '/tools/$toolId'
+      path: '/tools/$toolId'
+      fullPath: '/tools/$toolId'
+      preLoaderRoute: typeof ToolsToolIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor/$projectId/': {
+      id: '/editor/$projectId/'
+      path: '/editor/$projectId'
+      fullPath: '/editor/$projectId/'
+      preLoaderRoute: typeof EditorProjectIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor/$projectId/export': {
+      id: '/editor/$projectId/export'
+      path: '/editor/$projectId/export'
+      fullPath: '/editor/$projectId/export'
+      preLoaderRoute: typeof EditorProjectIdExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AssetsRoute: AssetsRoute,
+  CloudRoute: CloudRoute,
+  ProfileRoute: ProfileRoute,
+  ProjectsRoute: ProjectsRoute,
+  TemplatesRoute: TemplatesRoute,
+  ToolsToolIdRoute: ToolsToolIdRoute,
+  EditorIndexRoute: EditorIndexRoute,
+  ToolsIndexRoute: ToolsIndexRoute,
+  EditorProjectIdExportRoute: EditorProjectIdExportRoute,
+  EditorProjectIdIndexRoute: EditorProjectIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
