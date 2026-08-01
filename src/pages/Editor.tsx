@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from '@/lib/router-compat'
 import {
   AlertTriangle,
+  Layers,
+
   Download,
   RotateCcw,
   Save,
@@ -549,7 +551,9 @@ export function Editor() {
         <ToolbarButton icon={Redo2} label="Redo" onClick={redo} disabled={history.index >= history.items.length - 1} />
         <ToolbarButton icon={Columns2} label="Compare" onClick={() => setCompareMode((v) => !v)} active={compareMode} />
         <ToolbarButton icon={RotateCcw} label="Reset" onClick={handleReset} />
+        <ToolbarButton icon={Layers} label="Workspace" onClick={() => navigate(`/workspace/${project.id}`)} />
         <ToolbarButton icon={MoreVertical} label="More" onClick={() => setShowMore(true)} />
+
         <div className="flex-1" />
         <ToolbarButton icon={saved ? Check : Save} label={saved ? 'Saved' : 'Save'} onClick={handleSave} disabled={saved} primary={!saved} />
         <ToolbarButton icon={Download} label="Export" onClick={() => navigate(`/editor/${project.id}/export`)} primary />
