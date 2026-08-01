@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as CloudRouteImport } from './routes/cloud'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as EditorIndexRouteImport } from './routes/editor/index'
@@ -33,6 +34,11 @@ const AssetsRoute = AssetsRouteImport.update({
 const CloudRoute = CloudRouteImport.update({
   id: '/cloud',
   path: '/cloud',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsRoute = ProjectsRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/cloud': typeof CloudRoute
+  '/profile': typeof ProfileRoute
   '/projects': typeof ProjectsRoute
   '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/cloud': typeof CloudRoute
+  '/profile': typeof ProfileRoute
   '/projects': typeof ProjectsRoute
   '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assets': typeof AssetsRoute
   '/cloud': typeof CloudRoute
+  '/profile': typeof ProfileRoute
   '/projects': typeof ProjectsRoute
   '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets'
     | '/cloud'
+    | '/profile'
     | '/projects'
     | '/templates'
     | '/tools/$toolId'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets'
     | '/cloud'
+    | '/profile'
     | '/projects'
     | '/templates'
     | '/tools/$toolId'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets'
     | '/cloud'
+    | '/profile'
     | '/projects'
     | '/templates'
     | '/tools/$toolId'
@@ -151,6 +163,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssetsRoute: typeof AssetsRoute
   CloudRoute: typeof CloudRoute
+  ProfileRoute: typeof ProfileRoute
   ProjectsRoute: typeof ProjectsRoute
   TemplatesRoute: typeof TemplatesRoute
   ToolsToolIdRoute: typeof ToolsToolIdRoute
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/cloud'
       fullPath: '/cloud'
       preLoaderRoute: typeof CloudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -239,6 +259,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssetsRoute: AssetsRoute,
   CloudRoute: CloudRoute,
+  ProfileRoute: ProfileRoute,
   ProjectsRoute: ProjectsRoute,
   TemplatesRoute: TemplatesRoute,
   ToolsToolIdRoute: ToolsToolIdRoute,
