@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as EditorIndexRouteImport } from './routes/editor/index'
 import { Route as ToolsIndexRouteImport } from './routes/tools/index'
 import { Route as ToolsToolIdRouteImport } from './routes/tools/$toolId'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditorIndexRoute = EditorIndexRouteImport.update({
@@ -56,6 +62,7 @@ const EditorProjectIdExportRoute = EditorProjectIdExportRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRoute
+  '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
   '/editor/': typeof EditorIndexRoute
   '/tools/': typeof ToolsIndexRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRoute
+  '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
   '/editor': typeof EditorIndexRoute
   '/tools': typeof ToolsIndexRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/projects': typeof ProjectsRoute
+  '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
   '/editor/': typeof EditorIndexRoute
   '/tools/': typeof ToolsIndexRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/projects'
+    | '/templates'
     | '/tools/$toolId'
     | '/editor/'
     | '/tools/'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/projects'
+    | '/templates'
     | '/tools/$toolId'
     | '/editor'
     | '/tools'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/projects'
+    | '/templates'
     | '/tools/$toolId'
     | '/editor/'
     | '/tools/'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectsRoute: typeof ProjectsRoute
+  TemplatesRoute: typeof TemplatesRoute
   ToolsToolIdRoute: typeof ToolsToolIdRoute
   EditorIndexRoute: typeof EditorIndexRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor/': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectsRoute: ProjectsRoute,
+  TemplatesRoute: TemplatesRoute,
   ToolsToolIdRoute: ToolsToolIdRoute,
   EditorIndexRoute: EditorIndexRoute,
   ToolsIndexRoute: ToolsIndexRoute,
