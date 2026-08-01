@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@/lib/router-compat'
 import { ArrowRight, Wand2 } from 'lucide-react'
 import { AnimatedLogo } from '../components/AnimatedLogo'
 import { ProjectCard } from '../components/ProjectCard'

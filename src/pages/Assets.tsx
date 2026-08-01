@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Search, X, ChevronRight } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@/lib/router-compat'
 import { TopBar } from '../components/TopBar'
 import { AssetCard } from '../components/AssetCard'
 import { ASSETS, ASSET_CATEGORIES } from '../lib/assetsData'

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { Search, X, Download, ChevronRight, Heart, Sparkles } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@/lib/router-compat'
 import { TopBar } from '../components/TopBar'
 import { TemplateCard } from '../components/TemplateCard'
 import { UploadDropzone } from '../components/UploadDropzone'

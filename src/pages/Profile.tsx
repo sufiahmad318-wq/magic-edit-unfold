@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@/lib/router-compat'
 import { Trash2, Info, HardDrive, Sparkles, CloudUpload, ChevronRight } from 'lucide-react'
 import { AnimatedLogo } from '../components/AnimatedLogo'
 import { loadProjects, storageBytesUsed, clearAllData } from '../lib/storage'

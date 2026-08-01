@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from '@/lib/router-compat'
 import type { ToolMeta } from '../types'
 import { TOOL_ICONS } from '../lib/toolIcons'
 

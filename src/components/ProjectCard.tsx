@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '@/lib/router-compat'
 import { MoreVertical, Trash2, Copy, Pencil } from 'lucide-react'
 import type { Project } from '../types'
 

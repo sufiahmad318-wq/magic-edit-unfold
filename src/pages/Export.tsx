@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams } from '@/lib/router-compat'
 import {
   Check,
   CheckCircle2,

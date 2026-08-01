@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink } from '@/lib/router-compat'
 import { Home, FolderKanban, LayoutTemplate, Package, User } from 'lucide-react'
 import clsx from 'clsx'
 

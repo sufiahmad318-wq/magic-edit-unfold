@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from '@/lib/router-compat'
 import { TopBar } from '../components/TopBar'
 import { UploadDropzone } from '../components/UploadDropzone'
 import { ToolCard } from '../components/ToolCard'
