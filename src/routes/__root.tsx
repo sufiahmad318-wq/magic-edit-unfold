@@ -121,10 +121,23 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    void runAutoBackupIfDue();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="pointer-events-none fixed -top-32 -left-24 w-80 h-80 rounded-full bg-blue-600/25 blur-[100px] aurora-blob" />
+        <div className="pointer-events-none fixed top-1/3 -right-24 w-80 h-80 rounded-full bg-violet-600/25 blur-[110px] aurora-blob" />
+        <div className="pointer-events-none fixed bottom-0 left-1/3 w-72 h-72 rounded-full bg-fuchsia-600/15 blur-[100px] aurora-blob" />
+
+        <div className="relative max-w-xl sm:max-w-3xl mx-auto min-h-screen">
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <BottomNav />
+        </div>
+      </div>
     </QueryClientProvider>
   );
 }
