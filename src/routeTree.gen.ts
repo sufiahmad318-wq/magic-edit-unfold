@@ -18,6 +18,8 @@ import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as EditorIndexRouteImport } from './routes/editor/index'
 import { Route as ToolsIndexRouteImport } from './routes/tools/index'
 import { Route as ToolsToolIdRouteImport } from './routes/tools/$toolId'
+import { Route as WorkspaceIndexRouteImport } from './routes/workspace/index'
+import { Route as WorkspaceProjectIdRouteImport } from './routes/workspace/$projectId'
 import { Route as EditorProjectIdIndexRouteImport } from './routes/editor/$projectId/index'
 import { Route as EditorProjectIdExportRouteImport } from './routes/editor/$projectId/export'
 
@@ -66,6 +68,16 @@ const ToolsToolIdRoute = ToolsToolIdRouteImport.update({
   path: '/tools/$toolId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkspaceIndexRoute = WorkspaceIndexRouteImport.update({
+  id: '/workspace/',
+  path: '/workspace/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceProjectIdRoute = WorkspaceProjectIdRouteImport.update({
+  id: '/workspace/$projectId',
+  path: '/workspace/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditorProjectIdIndexRoute = EditorProjectIdIndexRouteImport.update({
   id: '/editor/$projectId/',
   path: '/editor/$projectId/',
@@ -85,8 +97,10 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsRoute
   '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
+  '/workspace/$projectId': typeof WorkspaceProjectIdRoute
   '/editor/': typeof EditorIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/workspace/': typeof WorkspaceIndexRoute
   '/editor/$projectId/export': typeof EditorProjectIdExportRoute
   '/editor/$projectId/': typeof EditorProjectIdIndexRoute
 }
@@ -98,8 +112,10 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRoute
   '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
+  '/workspace/$projectId': typeof WorkspaceProjectIdRoute
   '/editor': typeof EditorIndexRoute
   '/tools': typeof ToolsIndexRoute
+  '/workspace': typeof WorkspaceIndexRoute
   '/editor/$projectId/export': typeof EditorProjectIdExportRoute
   '/editor/$projectId': typeof EditorProjectIdIndexRoute
 }
@@ -112,8 +128,10 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsRoute
   '/templates': typeof TemplatesRoute
   '/tools/$toolId': typeof ToolsToolIdRoute
+  '/workspace/$projectId': typeof WorkspaceProjectIdRoute
   '/editor/': typeof EditorIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/workspace/': typeof WorkspaceIndexRoute
   '/editor/$projectId/export': typeof EditorProjectIdExportRoute
   '/editor/$projectId/': typeof EditorProjectIdIndexRoute
 }
@@ -127,8 +145,10 @@ export interface FileRouteTypes {
     | '/projects'
     | '/templates'
     | '/tools/$toolId'
+    | '/workspace/$projectId'
     | '/editor/'
     | '/tools/'
+    | '/workspace/'
     | '/editor/$projectId/export'
     | '/editor/$projectId/'
   fileRoutesByTo: FileRoutesByTo
@@ -140,8 +160,10 @@ export interface FileRouteTypes {
     | '/projects'
     | '/templates'
     | '/tools/$toolId'
+    | '/workspace/$projectId'
     | '/editor'
     | '/tools'
+    | '/workspace'
     | '/editor/$projectId/export'
     | '/editor/$projectId'
   id:
@@ -153,8 +175,10 @@ export interface FileRouteTypes {
     | '/projects'
     | '/templates'
     | '/tools/$toolId'
+    | '/workspace/$projectId'
     | '/editor/'
     | '/tools/'
+    | '/workspace/'
     | '/editor/$projectId/export'
     | '/editor/$projectId/'
   fileRoutesById: FileRoutesById
@@ -167,8 +191,10 @@ export interface RootRouteChildren {
   ProjectsRoute: typeof ProjectsRoute
   TemplatesRoute: typeof TemplatesRoute
   ToolsToolIdRoute: typeof ToolsToolIdRoute
+  WorkspaceProjectIdRoute: typeof WorkspaceProjectIdRoute
   EditorIndexRoute: typeof EditorIndexRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
+  WorkspaceIndexRoute: typeof WorkspaceIndexRoute
   EditorProjectIdExportRoute: typeof EditorProjectIdExportRoute
   EditorProjectIdIndexRoute: typeof EditorProjectIdIndexRoute
 }
@@ -238,6 +264,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsToolIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workspace/': {
+      id: '/workspace/'
+      path: '/workspace'
+      fullPath: '/workspace/'
+      preLoaderRoute: typeof WorkspaceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace/$projectId': {
+      id: '/workspace/$projectId'
+      path: '/workspace/$projectId'
+      fullPath: '/workspace/$projectId'
+      preLoaderRoute: typeof WorkspaceProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editor/$projectId/': {
       id: '/editor/$projectId/'
       path: '/editor/$projectId'
@@ -263,8 +303,10 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsRoute: ProjectsRoute,
   TemplatesRoute: TemplatesRoute,
   ToolsToolIdRoute: ToolsToolIdRoute,
+  WorkspaceProjectIdRoute: WorkspaceProjectIdRoute,
   EditorIndexRoute: EditorIndexRoute,
   ToolsIndexRoute: ToolsIndexRoute,
+  WorkspaceIndexRoute: WorkspaceIndexRoute,
   EditorProjectIdExportRoute: EditorProjectIdExportRoute,
   EditorProjectIdIndexRoute: EditorProjectIdIndexRoute,
 }

@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -122,6 +123,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const fullBleed = pathname.startsWith("/workspace");
 
   useEffect(() => {
     void runAutoBackupIfDue();
@@ -134,7 +137,13 @@ function RootComponent() {
         <div className="pointer-events-none fixed top-1/3 -right-24 w-80 h-80 rounded-full bg-violet-600/25 blur-[110px] aurora-blob" />
         <div className="pointer-events-none fixed bottom-0 left-1/3 w-72 h-72 rounded-full bg-fuchsia-600/15 blur-[100px] aurora-blob" />
 
-        <div className="relative max-w-xl sm:max-w-3xl mx-auto min-h-screen">
+        <div
+          className={
+            fullBleed
+              ? "relative w-full min-h-screen"
+              : "relative max-w-xl sm:max-w-3xl mx-auto min-h-screen"
+          }
+        >
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <BottomNav />
