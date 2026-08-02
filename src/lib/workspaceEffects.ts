@@ -95,3 +95,35 @@ export const FONT_FAMILIES = [
   { id: 'Georgia, serif', label: 'Serif' },
   { id: 'ui-monospace, monospace', label: 'Mono' },
 ]
+
+/** High-quality resample to explicit pixel dimensions. */
+export function resizeCanvas(source: HTMLCanvasElement, width: number, height: number): HTMLCanvasElement {
+  const w = Math.max(1, Math.round(width))
+  const h = Math.max(1, Math.round(height))
+  const out = document.createElement('canvas')
+  out.width = w
+  out.height = h
+  const ctx = out.getContext('2d')!
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(source, 0, 0, w, h)
+  return out
+}
+
+export const RESIZE_PRESETS: { id: string; label: string; w: number; h: number }[] = [
+  { id: 'ig-post', label: 'IG Post', w: 1080, h: 1080 },
+  { id: 'ig-story', label: 'IG Story', w: 1080, h: 1920 },
+  { id: 'yt-thumb', label: 'YT Thumb', w: 1280, h: 720 },
+  { id: 'fb-cover', label: 'FB Cover', w: 1640, h: 856 },
+  { id: 'a4', label: 'A4 @150', w: 1240, h: 1754 },
+  { id: 'hd', label: 'HD', w: 1920, h: 1080 },
+]
+
+export const DRAW_COLORS = ['#ffffff', '#0a0a12', '#60a5fa', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#f87171']
+
+/** Merges a transparent paint layer down onto the base image. */
+export function flattenLayer(source: HTMLCanvasElement, layer: HTMLCanvasElement): HTMLCanvasElement {
+  const out = cloneCanvas(source)
+  out.getContext('2d')!.drawImage(layer, 0, 0)
+  return out
+}
