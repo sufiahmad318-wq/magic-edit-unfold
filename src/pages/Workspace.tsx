@@ -235,12 +235,15 @@ export function Workspace() {
   useEffect(() => {
     if (!baseCanvas) return
     clearMask()
+    clearDrawLayer()
     if (tool === 'enhance') setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
     else setPreviewCanvas(cloneCanvas(baseCanvas))
     if (tool === 'crop') { setCrop({ x: 0.08, y: 0.08, w: 0.84, h: 0.84 }); setAspect('free') }
+    if (tool === 'resize') setResizeDims({ w: baseCanvas.width, h: baseCanvas.height })
     if (tool === 'filters') setActiveFilter('none')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseCanvas, tool])
+
 
   const activeMeta = useMemo(() => WS_TOOLS.find((t) => t.id === tool)!, [tool])
 
