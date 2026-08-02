@@ -146,7 +146,14 @@ function RootComponent() {
         >
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
-          <BottomNav />
+          {fullBleed ? (
+            <div className="lg:hidden">
+              <BottomNav />
+            </div>
+          ) : (
+            <BottomNav />
+          )}
+
         </div>
       </div>
     </QueryClientProvider>
