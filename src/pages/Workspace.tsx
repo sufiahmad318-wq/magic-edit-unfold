@@ -257,11 +257,9 @@ export function Workspace() {
     setBaseCanvas(canvas)
     setPreviewCanvas(cloneCanvas(canvas))
     setSaved(false)
-    const mask = document.createElement('canvas')
-    mask.width = canvas.width
-    mask.height = canvas.height
-    maskRef.current = mask
+    makeLayers(canvas)
   }
+
 
   const goToHistory = (index: number) => {
     const item = history.items[index]
