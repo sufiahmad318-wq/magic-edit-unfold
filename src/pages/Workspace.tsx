@@ -573,13 +573,24 @@ export function Workspace() {
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <IconAction icon={railOpen ? PanelLeftClose : PanelLeftOpen} label="Tools" onClick={() => setRailOpen((v) => !v)} active={railOpen} />
           <IconAction icon={Undo2} label="Undo" onClick={undo} disabled={history.index <= 0} />
           <IconAction icon={Redo2} label="Redo" onClick={redo} disabled={history.index >= history.items.length - 1} />
           <IconAction icon={RotateCcw} label="Reset" onClick={handleReset} />
-          <IconAction icon={Layers} label="Panel" onClick={() => setPanelOpen((v) => !v)} active={panelOpen} />
+          <IconAction icon={ZoomOut} label="Zoom out" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(2)))} />
+          <span className="shrink-0 w-11 text-center text-[11px] tabular-nums text-white/60">{Math.round(zoom * 100)}%</span>
+          <IconAction icon={ZoomIn} label="Zoom in" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))} />
+          <IconAction icon={Download} label="Download" onClick={quickDownload} />
+          <IconAction
+            icon={shareState === 'done' ? Check : Share2}
+            label={shareState === 'unsupported' ? 'Downloaded' : shareState === 'sharing' ? 'Sharing…' : 'Share'}
+            onClick={() => { if (shareState === 'unsupported') { quickDownload(); setShareState('idle') } else void handleShare() }}
+          />
+          <IconAction icon={panelOpen ? PanelRightClose : PanelRightOpen} label="Panel" onClick={() => setPanelOpen((v) => !v)} active={panelOpen} />
           <IconAction icon={saved ? Check : Save} label={saved ? 'Saved' : 'Save'} onClick={handleSave} disabled={saved} accent={!saved} />
           <IconAction icon={Download} label="Export" onClick={() => navigate(`/editor/${project.id}/export`)} accent />
         </div>
+
       </header>
 
       <div className="flex-1 flex min-h-0 flex-col lg:flex-row">
