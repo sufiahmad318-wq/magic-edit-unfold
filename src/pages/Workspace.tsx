@@ -405,6 +405,35 @@ export function Workspace() {
     void withBusy(() => cropCanvas(baseCanvas, crop))
   }
 
+  const applyResize = () => {
+    if (!baseCanvas || resizeDims.w < 1 || resizeDims.h < 1) return
+    void withBusy(() => resizeCanvas(baseCanvas, resizeDims.w, resizeDims.h))
+  }
+
+  const setResizeWidth = (w: number) => {
+    if (!baseCanvas) return
+    const ratio = baseCanvas.height / baseCanvas.width
+    setResizeDims((d) => ({ w, h: lockRatio ? Math.round(w * ratio) : d.h }))
+  }
+
+  const setResizeHeight = (h: number) => {
+    if (!baseCanvas) return
+    const ratio = baseCanvas.width / baseCanvas.height
+    setResizeDims((d) => ({ w: lockRatio ? Math.round(h * ratio) : d.w, h }))
+  }
+
+  const handleShare = async () => {
+    if (!baseCanvas) return
+    setShareState('sharing')
+    const filename = `${project?.name ?? 'magicedit'}.png`
+    const file = dataUrlToFile(canvasToDataUrl(baseCanvas), filename, 'image/png')
+    if (!canUseFileShare(file)) { setShareState('unsupported'); return }
+    const result = await shareFile(file, project?.name ?? 'MagicEdit AI')
+    setShareState(result === 'shared' ? 'done' : 'idle')
+    setTimeout(() => setShareState('idle'), 2000)
+  }
+
+
   const previewFilter = (id: string, css: string) => {
     if (!baseCanvas) return
     setActiveFilter(id)
