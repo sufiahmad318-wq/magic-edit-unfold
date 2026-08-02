@@ -174,18 +174,29 @@ export function Workspace() {
     if (p) setLastProjectId(p.id)
   }, [params.projectId])
 
+  const makeLayers = (canvas: HTMLCanvasElement) => {
+    const mask = document.createElement('canvas')
+    mask.width = canvas.width
+    mask.height = canvas.height
+    maskRef.current = mask
+    const layer = document.createElement('canvas')
+    layer.width = canvas.width
+    layer.height = canvas.height
+    drawLayerRef.current = layer
+    setDrawDirty(false)
+    setResizeDims({ w: canvas.width, h: canvas.height })
+  }
+
   const loadInto = (dataUrl: string) =>
     loadImage(dataUrl).then((img) => {
       const canvas = canvasFromImage(img)
       setBaseCanvas(canvas)
       setPreviewCanvas(cloneCanvas(canvas))
       setHistory({ items: [dataUrl], index: 0 })
-      const mask = document.createElement('canvas')
-      mask.width = canvas.width
-      mask.height = canvas.height
-      maskRef.current = mask
+      makeLayers(canvas)
       return canvas
     })
+
 
   useEffect(() => {
     if (!project) return
