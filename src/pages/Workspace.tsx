@@ -595,7 +595,11 @@ export function Workspace() {
 
       <div className="flex-1 flex min-h-0 flex-col lg:flex-row">
         {/* ---------------------------- left toolbar -------------------------- */}
-        <nav className="lg:w-[92px] shrink-0 border-b lg:border-b-0 lg:border-r border-white/5 bg-white/[0.02]">
+        <nav
+          className={`shrink-0 border-b lg:border-b-0 lg:border-r border-white/5 bg-white/[0.02] transition-all duration-300 ${
+            railOpen ? 'lg:w-[104px]' : 'lg:w-[60px]'
+          }`}
+        >
           <div className="flex lg:flex-col gap-1.5 p-2 overflow-x-auto lg:overflow-y-auto no-scrollbar">
             {WS_TOOLS.map(({ id, label, icon: Icon }) => {
               const active = tool === id
@@ -611,7 +615,11 @@ export function Workspace() {
                   }`}
                 >
                   <Icon size={18} />
-                  <span className="text-[10px] font-medium leading-tight lg:text-center whitespace-nowrap lg:whitespace-normal">
+                  <span
+                    className={`text-[10px] font-medium leading-tight lg:text-center whitespace-nowrap lg:whitespace-normal ${
+                      railOpen ? '' : 'lg:hidden'
+                    }`}
+                  >
                     {label}
                   </span>
                 </button>
@@ -626,7 +634,7 @@ export function Workspace() {
             <div
               ref={stageRef}
               style={{ ...ratioStyle, transform: `scale(${zoom})` }}
-              className="relative max-w-full max-h-full rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/60 transition-transform"
+              className="relative max-w-full max-h-full rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/60 transition-transform duration-200"
               onPointerMove={onStagePointerMove}
               onPointerUp={endDrag}
               onPointerLeave={endDrag}
@@ -634,11 +642,19 @@ export function Workspace() {
               <canvas
                 ref={displayRef}
                 className="w-full h-full block touch-none"
-                onPointerDown={(e) => { if (!isPaint) return; drawing.current = true; paintMask(e) }}
-                onPointerMove={(e) => { if (drawing.current) paintMask(e) }}
-                onPointerUp={() => (drawing.current = false)}
-                onPointerLeave={() => (drawing.current = false)}
+                onPointerDown={(e) => {
+                  if (isPaint) { drawing.current = true; paintMask(e); return }
+                  if (tool === 'draw') { drawing.current = true; lastPoint.current = null; paintDraw(e) }
+                }}
+                onPointerMove={(e) => {
+                  if (!drawing.current) return
+                  if (isPaint) paintMask(e)
+                  else if (tool === 'draw') paintDraw(e)
+                }}
+                onPointerUp={() => { drawing.current = false; lastPoint.current = null }}
+                onPointerLeave={() => { drawing.current = false; lastPoint.current = null }}
               />
+
 
               {/* crop overlay */}
               {tool === 'crop' && (
