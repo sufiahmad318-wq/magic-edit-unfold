@@ -132,6 +132,8 @@ export function Workspace() {
   const [saved, setSaved] = useState(true)
   const [zoom, setZoom] = useState(1)
   const [panelOpen, setPanelOpen] = useState(true)
+  const [railOpen, setRailOpen] = useState(true)
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'done' | 'unsupported'>('idle')
 
   // tool state
   const [enhanceSettings, setEnhanceSettings] = useState<EnhanceSettings>({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
@@ -140,6 +142,11 @@ export function Workspace() {
   const [activeFilter, setActiveFilter] = useState('none')
   const [crop, setCrop] = useState<CropRect>({ x: 0.08, y: 0.08, w: 0.84, h: 0.84 })
   const [aspect, setAspect] = useState('free')
+  const [resizeDims, setResizeDims] = useState({ w: 0, h: 0 })
+  const [lockRatio, setLockRatio] = useState(true)
+  const [drawColor, setDrawColor] = useState('#a78bfa')
+  const [drawSize, setDrawSize] = useState(14)
+  const [drawDirty, setDrawDirty] = useState(false)
   const [text, setText] = useState<TextOverlay>({
     text: 'Your headline', x: 0.5, y: 0.5, size: 0.12, color: '#ffffff', weight: 700,
     family: 'Sora, sans-serif', shadow: true,
@@ -147,9 +154,12 @@ export function Workspace() {
   const [sticker, setSticker] = useState<StickerOverlay>({ glyph: '✨', x: 0.5, y: 0.5, size: 0.2, rotation: 0 })
 
   const maskRef = useRef<HTMLCanvasElement | null>(null)
+  const drawLayerRef = useRef<HTMLCanvasElement | null>(null)
+  const lastPoint = useRef<{ x: number; y: number } | null>(null)
   const displayRef = useRef<HTMLCanvasElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
+
 
   const drawing = useRef(false)
   const dragging = useRef<null | 'crop-move' | 'crop-resize' | 'text' | 'sticker'>(null)
