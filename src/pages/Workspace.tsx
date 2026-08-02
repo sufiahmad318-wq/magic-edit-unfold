@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from '@/lib/router-compat'
 import {
   Sparkles, Scissors, Eraser, Wand2, Crop, SlidersHorizontal, Type, Sticker, Download,
   Undo2, Redo2, RotateCcw, Save, Check, ZoomIn, ZoomOut, Maximize2, ChevronLeft, Layers,
+  Share2, Brush, Scaling, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
+  History, Trash2, Lock,
 } from 'lucide-react'
 import { UploadDropzone } from '../components/UploadDropzone'
 import { AnimatedLogo } from '../components/AnimatedLogo'
@@ -15,28 +17,34 @@ import {
   cloneCanvas, FILTER_PRESETS, inpaint, loadImage, removeBackground, type EnhanceSettings,
 } from '../lib/imageEffects'
 import {
-  ASPECT_PRESETS, cropCanvas, drawSticker, drawText, FONT_FAMILIES, STICKERS,
+  ASPECT_PRESETS, cropCanvas, drawSticker, drawText, flattenLayer, FONT_FAMILIES, RESIZE_PRESETS,
+  resizeCanvas, DRAW_COLORS, STICKERS,
   type CropRect, type StickerOverlay, type TextOverlay,
 } from '../lib/workspaceEffects'
+import { canUseFileShare, dataUrlToFile, shareFile } from '../lib/share'
 import type { Project } from '../types'
 
 type WsTool =
   | 'enhance' | 'background-remover' | 'object-remover' | 'magic-eraser'
-  | 'crop' | 'filters' | 'text' | 'stickers' | 'export'
+  | 'crop' | 'resize' | 'filters' | 'text' | 'stickers' | 'draw' | 'layers' | 'export'
 
 const WS_TOOLS: { id: WsTool; label: string; icon: typeof Sparkles; hint: string }[] = [
   { id: 'enhance', label: 'AI Enhance', icon: Sparkles, hint: 'Light, colour & detail' },
   { id: 'background-remover', label: 'Background', icon: Scissors, hint: 'Cut out the subject' },
   { id: 'object-remover', label: 'Object Remover', icon: Wand2, hint: 'Paint over what to remove' },
   { id: 'magic-eraser', label: 'Magic Eraser', icon: Eraser, hint: 'Erase blemishes & marks' },
-  { id: 'crop', label: 'Crop', icon: Crop, hint: 'Reframe and resize' },
+  { id: 'crop', label: 'Crop', icon: Crop, hint: 'Reframe your shot' },
+  { id: 'resize', label: 'Resize', icon: Scaling, hint: 'Exact pixel dimensions' },
   { id: 'filters', label: 'Filters', icon: SlidersHorizontal, hint: 'One-tap looks' },
   { id: 'text', label: 'Text', icon: Type, hint: 'Add a headline' },
   { id: 'stickers', label: 'Stickers', icon: Sticker, hint: 'Drop in graphics' },
+  { id: 'draw', label: 'Draw', icon: Brush, hint: 'Freehand brush' },
+  { id: 'layers', label: 'Layers', icon: Layers, hint: 'Edit history stack' },
   { id: 'export', label: 'Export', icon: Download, hint: 'Save & share' },
 ]
 
 const PAINT_TOOLS: WsTool[] = ['object-remover', 'magic-eraser']
+
 
 /* ---------------------------------- atoms --------------------------------- */
 
