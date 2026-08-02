@@ -812,6 +812,110 @@ export function Workspace() {
                 </div>
               )}
 
+              {tool === 'resize' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    {RESIZE_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setResizeDims({ w: p.w, h: p.h })}
+                        className={`py-2 rounded-xl text-[11px] font-medium transition-all ${
+                          resizeDims.w === p.w && resizeDims.h === p.h
+                            ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white'
+                            : 'glass text-white/60 hover:text-white'
+                        }`}
+                      >{p.label}</button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block">
+                      <span className="text-[11px] text-white/45">Width (px)</span>
+                      <input
+                        type="number" min={1} value={resizeDims.w}
+                        onChange={(e) => setResizeWidth(Number(e.target.value))}
+                        className="mt-1 w-full rounded-xl glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500/50"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[11px] text-white/45">Height (px)</span>
+                      <input
+                        type="number" min={1} value={resizeDims.h}
+                        onChange={(e) => setResizeHeight(Number(e.target.value))}
+                        className="mt-1 w-full rounded-xl glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500/50"
+                      />
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => setLockRatio((v) => !v)}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                      lockRatio ? 'bg-gradient-to-r from-blue-500/80 to-violet-500/80 text-white' : 'glass text-white/60'
+                    }`}
+                  >
+                    <Lock size={14} /> {lockRatio ? 'Aspect ratio locked' : 'Free dimensions'}
+                  </button>
+                  <PrimaryButton onClick={applyResize}><Scaling size={15} /> Apply resize</PrimaryButton>
+                </div>
+              )}
+
+              {tool === 'draw' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-white/45 leading-relaxed">
+                    Draw freehand on the canvas, then flatten the stroke layer into the image.
+                  </p>
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {DRAW_COLORS.map((c) => (
+                      <button
+                        key={c} onClick={() => setDrawColor(c)} aria-label={`Brush colour ${c}`}
+                        style={{ background: c }}
+                        className={`aspect-square rounded-lg transition-all ${
+                          drawColor === c ? 'ring-2 ring-violet-300 scale-110' : 'ring-1 ring-white/15'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-white/55">
+                    <span>Custom colour</span>
+                    <input type="color" value={drawColor} aria-label="Custom brush colour"
+                      onChange={(e) => setDrawColor(e.target.value)}
+                      className="w-10 h-8 rounded-lg bg-transparent" />
+                  </div>
+                  <Slider label="Brush size" value={drawSize} min={2} max={80} suffix="px" onChange={setDrawSize} />
+                  <PrimaryButton onClick={applyDraw} disabled={!drawDirty}><Brush size={15} /> Flatten strokes</PrimaryButton>
+                  <GhostButton onClick={clearDrawAndPreview} disabled={!drawDirty}><Trash2 size={15} /> Clear strokes</GhostButton>
+                </div>
+              )}
+
+              {tool === 'layers' && (
+                <div className="space-y-3">
+                  <p className="text-xs text-white/45 leading-relaxed">
+                    Every applied edit becomes a layer state. Tap one to jump back or forward in the stack.
+                  </p>
+                  <div className="space-y-2">
+                    {history.items.map((item, i) => (
+                      <button
+                        key={i} onClick={() => goToHistory(i)}
+                        className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all ${
+                          i === history.index ? 'bg-gradient-to-r from-blue-500/25 to-violet-500/25 ring-1 ring-violet-400/50' : 'glass hover:bg-white/10'
+                        }`}
+                      >
+                        <img src={item} alt="" className="w-10 h-10 rounded-lg object-cover ring-1 ring-white/10" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate">
+                            {i === 0 ? 'Base image' : `Edit ${i}`}
+                          </p>
+                          <p className="text-[10px] text-white/40">
+                            {i === history.index ? 'Current state' : 'Tap to restore'}
+                          </p>
+                        </div>
+                      </button>
+                    )).reverse()}
+                  </div>
+                  <GhostButton onClick={() => navigate(`/editor/${project.id}`)}><History size={15} /> Version history</GhostButton>
+                </div>
+              )}
+
+
+
               {tool === 'filters' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
