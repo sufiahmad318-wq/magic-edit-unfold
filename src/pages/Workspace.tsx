@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from '@/lib/router-compat'
 import {
   Sparkles, Scissors, Eraser, Wand2, Crop, SlidersHorizontal, Type, Sticker, Download,
   Undo2, Redo2, RotateCcw, Save, Check, ZoomIn, ZoomOut, Maximize2, ChevronLeft, Layers,
+  Share2, Brush, Scaling, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
+  History, Trash2, Lock,
 } from 'lucide-react'
 import { UploadDropzone } from '../components/UploadDropzone'
 import { AnimatedLogo } from '../components/AnimatedLogo'
@@ -15,28 +17,34 @@ import {
   cloneCanvas, FILTER_PRESETS, inpaint, loadImage, removeBackground, type EnhanceSettings,
 } from '../lib/imageEffects'
 import {
-  ASPECT_PRESETS, cropCanvas, drawSticker, drawText, FONT_FAMILIES, STICKERS,
+  ASPECT_PRESETS, cropCanvas, drawSticker, drawText, flattenLayer, FONT_FAMILIES, RESIZE_PRESETS,
+  resizeCanvas, DRAW_COLORS, STICKERS,
   type CropRect, type StickerOverlay, type TextOverlay,
 } from '../lib/workspaceEffects'
+import { canUseFileShare, dataUrlToFile, shareFile } from '../lib/share'
 import type { Project } from '../types'
 
 type WsTool =
   | 'enhance' | 'background-remover' | 'object-remover' | 'magic-eraser'
-  | 'crop' | 'filters' | 'text' | 'stickers' | 'export'
+  | 'crop' | 'resize' | 'filters' | 'text' | 'stickers' | 'draw' | 'layers' | 'export'
 
 const WS_TOOLS: { id: WsTool; label: string; icon: typeof Sparkles; hint: string }[] = [
   { id: 'enhance', label: 'AI Enhance', icon: Sparkles, hint: 'Light, colour & detail' },
   { id: 'background-remover', label: 'Background', icon: Scissors, hint: 'Cut out the subject' },
   { id: 'object-remover', label: 'Object Remover', icon: Wand2, hint: 'Paint over what to remove' },
   { id: 'magic-eraser', label: 'Magic Eraser', icon: Eraser, hint: 'Erase blemishes & marks' },
-  { id: 'crop', label: 'Crop', icon: Crop, hint: 'Reframe and resize' },
+  { id: 'crop', label: 'Crop', icon: Crop, hint: 'Reframe your shot' },
+  { id: 'resize', label: 'Resize', icon: Scaling, hint: 'Exact pixel dimensions' },
   { id: 'filters', label: 'Filters', icon: SlidersHorizontal, hint: 'One-tap looks' },
   { id: 'text', label: 'Text', icon: Type, hint: 'Add a headline' },
   { id: 'stickers', label: 'Stickers', icon: Sticker, hint: 'Drop in graphics' },
+  { id: 'draw', label: 'Draw', icon: Brush, hint: 'Freehand brush' },
+  { id: 'layers', label: 'Layers', icon: Layers, hint: 'Edit history stack' },
   { id: 'export', label: 'Export', icon: Download, hint: 'Save & share' },
 ]
 
 const PAINT_TOOLS: WsTool[] = ['object-remover', 'magic-eraser']
+
 
 /* ---------------------------------- atoms --------------------------------- */
 
@@ -124,6 +132,8 @@ export function Workspace() {
   const [saved, setSaved] = useState(true)
   const [zoom, setZoom] = useState(1)
   const [panelOpen, setPanelOpen] = useState(true)
+  const [railOpen, setRailOpen] = useState(true)
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'done' | 'unsupported'>('idle')
 
   // tool state
   const [enhanceSettings, setEnhanceSettings] = useState<EnhanceSettings>({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
@@ -132,6 +142,11 @@ export function Workspace() {
   const [activeFilter, setActiveFilter] = useState('none')
   const [crop, setCrop] = useState<CropRect>({ x: 0.08, y: 0.08, w: 0.84, h: 0.84 })
   const [aspect, setAspect] = useState('free')
+  const [resizeDims, setResizeDims] = useState({ w: 0, h: 0 })
+  const [lockRatio, setLockRatio] = useState(true)
+  const [drawColor, setDrawColor] = useState('#a78bfa')
+  const [drawSize, setDrawSize] = useState(14)
+  const [drawDirty, setDrawDirty] = useState(false)
   const [text, setText] = useState<TextOverlay>({
     text: 'Your headline', x: 0.5, y: 0.5, size: 0.12, color: '#ffffff', weight: 700,
     family: 'Sora, sans-serif', shadow: true,
@@ -139,9 +154,12 @@ export function Workspace() {
   const [sticker, setSticker] = useState<StickerOverlay>({ glyph: '✨', x: 0.5, y: 0.5, size: 0.2, rotation: 0 })
 
   const maskRef = useRef<HTMLCanvasElement | null>(null)
+  const drawLayerRef = useRef<HTMLCanvasElement | null>(null)
+  const lastPoint = useRef<{ x: number; y: number } | null>(null)
   const displayRef = useRef<HTMLCanvasElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
+
 
   const drawing = useRef(false)
   const dragging = useRef<null | 'crop-move' | 'crop-resize' | 'text' | 'sticker'>(null)
@@ -156,18 +174,29 @@ export function Workspace() {
     if (p) setLastProjectId(p.id)
   }, [params.projectId])
 
+  const makeLayers = (canvas: HTMLCanvasElement) => {
+    const mask = document.createElement('canvas')
+    mask.width = canvas.width
+    mask.height = canvas.height
+    maskRef.current = mask
+    const layer = document.createElement('canvas')
+    layer.width = canvas.width
+    layer.height = canvas.height
+    drawLayerRef.current = layer
+    setDrawDirty(false)
+    setResizeDims({ w: canvas.width, h: canvas.height })
+  }
+
   const loadInto = (dataUrl: string) =>
     loadImage(dataUrl).then((img) => {
       const canvas = canvasFromImage(img)
       setBaseCanvas(canvas)
       setPreviewCanvas(cloneCanvas(canvas))
       setHistory({ items: [dataUrl], index: 0 })
-      const mask = document.createElement('canvas')
-      mask.width = canvas.width
-      mask.height = canvas.height
-      maskRef.current = mask
+      makeLayers(canvas)
       return canvas
     })
+
 
   useEffect(() => {
     if (!project) return
@@ -206,12 +235,15 @@ export function Workspace() {
   useEffect(() => {
     if (!baseCanvas) return
     clearMask()
+    clearDrawLayer()
     if (tool === 'enhance') setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
     else setPreviewCanvas(cloneCanvas(baseCanvas))
     if (tool === 'crop') { setCrop({ x: 0.08, y: 0.08, w: 0.84, h: 0.84 }); setAspect('free') }
+    if (tool === 'resize') setResizeDims({ w: baseCanvas.width, h: baseCanvas.height })
     if (tool === 'filters') setActiveFilter('none')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseCanvas, tool])
+
 
   const activeMeta = useMemo(() => WS_TOOLS.find((t) => t.id === tool)!, [tool])
 
@@ -225,11 +257,9 @@ export function Workspace() {
     setBaseCanvas(canvas)
     setPreviewCanvas(cloneCanvas(canvas))
     setSaved(false)
-    const mask = document.createElement('canvas')
-    mask.width = canvas.width
-    mask.height = canvas.height
-    maskRef.current = mask
+    makeLayers(canvas)
   }
+
 
   const goToHistory = (index: number) => {
     const item = history.items[index]
@@ -280,13 +310,31 @@ export function Workspace() {
     if (baseCanvas) setPreviewCanvas(cloneCanvas(baseCanvas))
   }
 
+  function clearDrawLayer() {
+    const layer = drawLayerRef.current
+    if (!layer) return
+    layer.getContext('2d')!.clearRect(0, 0, layer.width, layer.height)
+    setDrawDirty(false)
+  }
+
+  const clearDrawAndPreview = () => {
+    clearDrawLayer()
+    if (baseCanvas) setPreviewCanvas(cloneCanvas(baseCanvas))
+  }
+
+  const canvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const el = e.currentTarget
+    const rect = el.getBoundingClientRect()
+    return {
+      x: (e.clientX - rect.left) * (el.width / rect.width),
+      y: (e.clientY - rect.top) * (el.height / rect.height),
+    }
+  }
+
   const paintMask = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const mask = maskRef.current
     if (!mask || !baseCanvas) return
-    const el = e.currentTarget
-    const rect = el.getBoundingClientRect()
-    const x = (e.clientX - rect.left) * (el.width / rect.width)
-    const y = (e.clientY - rect.top) * (el.height / rect.height)
+    const { x, y } = canvasPoint(e)
     const ctx = mask.getContext('2d')!
     ctx.fillStyle = 'rgba(167, 139, 250, 0.85)'
     ctx.beginPath()
@@ -296,6 +344,39 @@ export function Workspace() {
     merged.getContext('2d')!.drawImage(mask, 0, 0)
     setPreviewCanvas(merged)
   }
+
+  const paintDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const layer = drawLayerRef.current
+    if (!layer || !baseCanvas) return
+    const { x, y } = canvasPoint(e)
+    const ctx = layer.getContext('2d')!
+    ctx.strokeStyle = drawColor
+    ctx.fillStyle = drawColor
+    ctx.lineWidth = drawSize * 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    const prev = lastPoint.current
+    if (prev) {
+      ctx.beginPath()
+      ctx.moveTo(prev.x, prev.y)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+    } else {
+      ctx.beginPath()
+      ctx.arc(x, y, drawSize, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    lastPoint.current = { x, y }
+    setDrawDirty(true)
+    setPreviewCanvas(flattenLayer(baseCanvas, layer))
+  }
+
+  const applyDraw = () => {
+    const layer = drawLayerRef.current
+    if (!baseCanvas || !layer || !drawDirty) return
+    void withBusy(() => flattenLayer(baseCanvas, layer))
+  }
+
 
   /* ------------------------------ tool actions ---------------------------- */
   const runAutoEnhance = () => {
@@ -323,6 +404,35 @@ export function Workspace() {
     if (!baseCanvas) return
     void withBusy(() => cropCanvas(baseCanvas, crop))
   }
+
+  const applyResize = () => {
+    if (!baseCanvas || resizeDims.w < 1 || resizeDims.h < 1) return
+    void withBusy(() => resizeCanvas(baseCanvas, resizeDims.w, resizeDims.h))
+  }
+
+  const setResizeWidth = (w: number) => {
+    if (!baseCanvas) return
+    const ratio = baseCanvas.height / baseCanvas.width
+    setResizeDims((d) => ({ w, h: lockRatio ? Math.round(w * ratio) : d.h }))
+  }
+
+  const setResizeHeight = (h: number) => {
+    if (!baseCanvas) return
+    const ratio = baseCanvas.width / baseCanvas.height
+    setResizeDims((d) => ({ w: lockRatio ? Math.round(h * ratio) : d.w, h }))
+  }
+
+  const handleShare = async () => {
+    if (!baseCanvas) return
+    setShareState('sharing')
+    const filename = `${project?.name ?? 'magicedit'}.png`
+    const file = dataUrlToFile(canvasToDataUrl(baseCanvas), filename, 'image/png')
+    if (!canUseFileShare(file)) { setShareState('unsupported'); return }
+    const result = await shareFile(file, project?.name ?? 'MagicEdit AI')
+    setShareState(result === 'shared' ? 'done' : 'idle')
+    setTimeout(() => setShareState('idle'), 2000)
+  }
+
 
   const previewFilter = (id: string, css: string) => {
     if (!baseCanvas) return
@@ -463,18 +573,33 @@ export function Workspace() {
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <IconAction icon={railOpen ? PanelLeftClose : PanelLeftOpen} label="Tools" onClick={() => setRailOpen((v) => !v)} active={railOpen} />
           <IconAction icon={Undo2} label="Undo" onClick={undo} disabled={history.index <= 0} />
           <IconAction icon={Redo2} label="Redo" onClick={redo} disabled={history.index >= history.items.length - 1} />
           <IconAction icon={RotateCcw} label="Reset" onClick={handleReset} />
-          <IconAction icon={Layers} label="Panel" onClick={() => setPanelOpen((v) => !v)} active={panelOpen} />
+          <IconAction icon={ZoomOut} label="Zoom out" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(2)))} />
+          <span className="shrink-0 w-11 text-center text-[11px] tabular-nums text-white/60">{Math.round(zoom * 100)}%</span>
+          <IconAction icon={ZoomIn} label="Zoom in" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))} />
+          <IconAction icon={Download} label="Download" onClick={quickDownload} />
+          <IconAction
+            icon={shareState === 'done' ? Check : Share2}
+            label={shareState === 'unsupported' ? 'Downloaded' : shareState === 'sharing' ? 'Sharing…' : 'Share'}
+            onClick={() => { if (shareState === 'unsupported') { quickDownload(); setShareState('idle') } else void handleShare() }}
+          />
+          <IconAction icon={panelOpen ? PanelRightClose : PanelRightOpen} label="Panel" onClick={() => setPanelOpen((v) => !v)} active={panelOpen} />
           <IconAction icon={saved ? Check : Save} label={saved ? 'Saved' : 'Save'} onClick={handleSave} disabled={saved} accent={!saved} />
           <IconAction icon={Download} label="Export" onClick={() => navigate(`/editor/${project.id}/export`)} accent />
         </div>
+
       </header>
 
       <div className="flex-1 flex min-h-0 flex-col lg:flex-row">
         {/* ---------------------------- left toolbar -------------------------- */}
-        <nav className="lg:w-[92px] shrink-0 border-b lg:border-b-0 lg:border-r border-white/5 bg-white/[0.02]">
+        <nav
+          className={`shrink-0 border-b lg:border-b-0 lg:border-r border-white/5 bg-white/[0.02] transition-all duration-300 ${
+            railOpen ? 'lg:w-[104px]' : 'lg:w-[60px]'
+          }`}
+        >
           <div className="flex lg:flex-col gap-1.5 p-2 overflow-x-auto lg:overflow-y-auto no-scrollbar">
             {WS_TOOLS.map(({ id, label, icon: Icon }) => {
               const active = tool === id
@@ -490,7 +615,11 @@ export function Workspace() {
                   }`}
                 >
                   <Icon size={18} />
-                  <span className="text-[10px] font-medium leading-tight lg:text-center whitespace-nowrap lg:whitespace-normal">
+                  <span
+                    className={`text-[10px] font-medium leading-tight lg:text-center whitespace-nowrap lg:whitespace-normal ${
+                      railOpen ? '' : 'lg:hidden'
+                    }`}
+                  >
                     {label}
                   </span>
                 </button>
@@ -505,7 +634,7 @@ export function Workspace() {
             <div
               ref={stageRef}
               style={{ ...ratioStyle, transform: `scale(${zoom})` }}
-              className="relative max-w-full max-h-full rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/60 transition-transform"
+              className="relative max-w-full max-h-full rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/60 transition-transform duration-200"
               onPointerMove={onStagePointerMove}
               onPointerUp={endDrag}
               onPointerLeave={endDrag}
@@ -513,11 +642,19 @@ export function Workspace() {
               <canvas
                 ref={displayRef}
                 className="w-full h-full block touch-none"
-                onPointerDown={(e) => { if (!isPaint) return; drawing.current = true; paintMask(e) }}
-                onPointerMove={(e) => { if (drawing.current) paintMask(e) }}
-                onPointerUp={() => (drawing.current = false)}
-                onPointerLeave={() => (drawing.current = false)}
+                onPointerDown={(e) => {
+                  if (isPaint) { drawing.current = true; paintMask(e); return }
+                  if (tool === 'draw') { drawing.current = true; lastPoint.current = null; paintDraw(e) }
+                }}
+                onPointerMove={(e) => {
+                  if (!drawing.current) return
+                  if (isPaint) paintMask(e)
+                  else if (tool === 'draw') paintDraw(e)
+                }}
+                onPointerUp={() => { drawing.current = false; lastPoint.current = null }}
+                onPointerLeave={() => { drawing.current = false; lastPoint.current = null }}
               />
+
 
               {/* crop overlay */}
               {tool === 'crop' && (
@@ -674,6 +811,110 @@ export function Workspace() {
                   <PrimaryButton onClick={applyCrop}><Crop size={15} /> Apply crop</PrimaryButton>
                 </div>
               )}
+
+              {tool === 'resize' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    {RESIZE_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setResizeDims({ w: p.w, h: p.h })}
+                        className={`py-2 rounded-xl text-[11px] font-medium transition-all ${
+                          resizeDims.w === p.w && resizeDims.h === p.h
+                            ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white'
+                            : 'glass text-white/60 hover:text-white'
+                        }`}
+                      >{p.label}</button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block">
+                      <span className="text-[11px] text-white/45">Width (px)</span>
+                      <input
+                        type="number" min={1} value={resizeDims.w}
+                        onChange={(e) => setResizeWidth(Number(e.target.value))}
+                        className="mt-1 w-full rounded-xl glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500/50"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[11px] text-white/45">Height (px)</span>
+                      <input
+                        type="number" min={1} value={resizeDims.h}
+                        onChange={(e) => setResizeHeight(Number(e.target.value))}
+                        className="mt-1 w-full rounded-xl glass px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500/50"
+                      />
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => setLockRatio((v) => !v)}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                      lockRatio ? 'bg-gradient-to-r from-blue-500/80 to-violet-500/80 text-white' : 'glass text-white/60'
+                    }`}
+                  >
+                    <Lock size={14} /> {lockRatio ? 'Aspect ratio locked' : 'Free dimensions'}
+                  </button>
+                  <PrimaryButton onClick={applyResize}><Scaling size={15} /> Apply resize</PrimaryButton>
+                </div>
+              )}
+
+              {tool === 'draw' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-white/45 leading-relaxed">
+                    Draw freehand on the canvas, then flatten the stroke layer into the image.
+                  </p>
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {DRAW_COLORS.map((c) => (
+                      <button
+                        key={c} onClick={() => setDrawColor(c)} aria-label={`Brush colour ${c}`}
+                        style={{ background: c }}
+                        className={`aspect-square rounded-lg transition-all ${
+                          drawColor === c ? 'ring-2 ring-violet-300 scale-110' : 'ring-1 ring-white/15'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-white/55">
+                    <span>Custom colour</span>
+                    <input type="color" value={drawColor} aria-label="Custom brush colour"
+                      onChange={(e) => setDrawColor(e.target.value)}
+                      className="w-10 h-8 rounded-lg bg-transparent" />
+                  </div>
+                  <Slider label="Brush size" value={drawSize} min={2} max={80} suffix="px" onChange={setDrawSize} />
+                  <PrimaryButton onClick={applyDraw} disabled={!drawDirty}><Brush size={15} /> Flatten strokes</PrimaryButton>
+                  <GhostButton onClick={clearDrawAndPreview} disabled={!drawDirty}><Trash2 size={15} /> Clear strokes</GhostButton>
+                </div>
+              )}
+
+              {tool === 'layers' && (
+                <div className="space-y-3">
+                  <p className="text-xs text-white/45 leading-relaxed">
+                    Every applied edit becomes a layer state. Tap one to jump back or forward in the stack.
+                  </p>
+                  <div className="space-y-2">
+                    {history.items.map((item, i) => (
+                      <button
+                        key={i} onClick={() => goToHistory(i)}
+                        className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all ${
+                          i === history.index ? 'bg-gradient-to-r from-blue-500/25 to-violet-500/25 ring-1 ring-violet-400/50' : 'glass hover:bg-white/10'
+                        }`}
+                      >
+                        <img src={item} alt="" className="w-10 h-10 rounded-lg object-cover ring-1 ring-white/10" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate">
+                            {i === 0 ? 'Base image' : `Edit ${i}`}
+                          </p>
+                          <p className="text-[10px] text-white/40">
+                            {i === history.index ? 'Current state' : 'Tap to restore'}
+                          </p>
+                        </div>
+                      </button>
+                    )).reverse()}
+                  </div>
+                  <GhostButton onClick={() => navigate(`/editor/${project.id}`)}><History size={15} /> Version history</GhostButton>
+                </div>
+              )}
+
+
 
               {tool === 'filters' && (
                 <div className="space-y-4">
