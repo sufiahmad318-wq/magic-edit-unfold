@@ -310,13 +310,31 @@ export function Workspace() {
     if (baseCanvas) setPreviewCanvas(cloneCanvas(baseCanvas))
   }
 
+  function clearDrawLayer() {
+    const layer = drawLayerRef.current
+    if (!layer) return
+    layer.getContext('2d')!.clearRect(0, 0, layer.width, layer.height)
+    setDrawDirty(false)
+  }
+
+  const clearDrawAndPreview = () => {
+    clearDrawLayer()
+    if (baseCanvas) setPreviewCanvas(cloneCanvas(baseCanvas))
+  }
+
+  const canvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const el = e.currentTarget
+    const rect = el.getBoundingClientRect()
+    return {
+      x: (e.clientX - rect.left) * (el.width / rect.width),
+      y: (e.clientY - rect.top) * (el.height / rect.height),
+    }
+  }
+
   const paintMask = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const mask = maskRef.current
     if (!mask || !baseCanvas) return
-    const el = e.currentTarget
-    const rect = el.getBoundingClientRect()
-    const x = (e.clientX - rect.left) * (el.width / rect.width)
-    const y = (e.clientY - rect.top) * (el.height / rect.height)
+    const { x, y } = canvasPoint(e)
     const ctx = mask.getContext('2d')!
     ctx.fillStyle = 'rgba(167, 139, 250, 0.85)'
     ctx.beginPath()
@@ -326,6 +344,39 @@ export function Workspace() {
     merged.getContext('2d')!.drawImage(mask, 0, 0)
     setPreviewCanvas(merged)
   }
+
+  const paintDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const layer = drawLayerRef.current
+    if (!layer || !baseCanvas) return
+    const { x, y } = canvasPoint(e)
+    const ctx = layer.getContext('2d')!
+    ctx.strokeStyle = drawColor
+    ctx.fillStyle = drawColor
+    ctx.lineWidth = drawSize * 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    const prev = lastPoint.current
+    if (prev) {
+      ctx.beginPath()
+      ctx.moveTo(prev.x, prev.y)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+    } else {
+      ctx.beginPath()
+      ctx.arc(x, y, drawSize, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    lastPoint.current = { x, y }
+    setDrawDirty(true)
+    setPreviewCanvas(flattenLayer(baseCanvas, layer))
+  }
+
+  const applyDraw = () => {
+    const layer = drawLayerRef.current
+    if (!baseCanvas || !layer || !drawDirty) return
+    void withBusy(() => flattenLayer(baseCanvas, layer))
+  }
+
 
   /* ------------------------------ tool actions ---------------------------- */
   const runAutoEnhance = () => {
