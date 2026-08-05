@@ -22,8 +22,9 @@ export function useNavigate() {
 }
 
 export function useParams<T = Record<string, string | undefined>>() {
-  return useTanstackParams({ strict: false }) as T;
+  return useTanstackParams({ strict: false } as never) as T;
 }
+
 
 export function useSearchParams(): [URLSearchParams, (next: URLSearchParams) => void] {
   const router = useRouter();
