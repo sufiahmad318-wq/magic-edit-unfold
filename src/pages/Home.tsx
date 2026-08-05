@@ -8,19 +8,41 @@ import { TOOLS } from '../types'
 import type { Project } from '../types'
 import { createProjectFromFile } from '../lib/projectActions'
 import { loadProjects, deleteProject as removeProject, duplicateProject as copyProject, renameProject } from '../lib/storage'
+import { CardGridSkeleton, Spinner } from '../components/Loaders'
+import { toast } from 'sonner'
 
 export function Home() {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
   const [dragging, setDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    setProjects(loadProjects())
+    try {
+      setProjects(loadProjects())
+    } catch {
+      toast.error('Could not read your saved projects')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const handleUpload = async (file: File) => {
-    const project = await createProjectFromFile(file)
-    navigate(`/editor/${project.id}`)
+    if (uploading) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('That file isn\u2019t an image')
+      return
+    }
+    setUploading(true)
+    try {
+      const project = await createProjectFromFile(file)
+      navigate(`/editor/${project.id}`)
+    } catch {
+      toast.error('We couldn\u2019t open that image. Try a JPG or PNG.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -35,7 +57,7 @@ export function Home() {
         e.preventDefault()
         setDragging(false)
         const file = e.dataTransfer.files?.[0]
-        if (file && file.type.startsWith('image/')) handleUpload(file)
+        if (file) void handleUpload(file)
       }}
     >
       {dragging && (
@@ -71,7 +93,7 @@ export function Home() {
               onClick={() => navigate('/editor')}
               className="mt-5 inline-flex items-center gap-2 bg-white text-[#1a1030] font-display font-semibold text-sm px-7 py-3.5 rounded-2xl animate-cta-glow active:scale-[0.97] transition-transform"
             >
-              <Wand2 size={17} strokeWidth={2.5} />
+              {uploading ? <Spinner className="w-[17px] h-[17px] border-[#1a1030]/25 border-t-[#1a1030]" /> : <Wand2 size={17} strokeWidth={2.5} />}
               Start Editing
             </button>
             <p className="text-[11px] text-white/60 mt-2.5">opens the full editor workspace</p>
@@ -104,7 +126,9 @@ export function Home() {
             </button>
           )}
         </div>
-        {projects.length === 0 ? (
+        {loading ? (
+          <CardGridSkeleton count={4} />
+        ) : projects.length === 0 ? (
           <div className="glass rounded-2xl py-10 px-6 text-center animate-fade-up delay-2">
             <p className="text-sm text-white/50">No projects yet. Upload a photo to get started.</p>
           </div>
