@@ -33,13 +33,24 @@ export function ProjectCard({
 
   return (
     <div className="relative group animate-fade-up">
-      <button
-        onClick={() => navigate(`/editor/${project.id}`)}
-        className="w-full aspect-[3/4] rounded-2xl overflow-hidden glass relative active:scale-[0.98] transition-transform"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => { if (!renaming) navigate(`/editor/${project.id}`) }}
+        onKeyDown={(e) => {
+          if (!renaming && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault()
+            navigate(`/editor/${project.id}`)
+          }
+        }}
+        aria-label={`Open project ${project.name}`}
+        className="w-full aspect-[3/4] rounded-2xl overflow-hidden glass relative cursor-pointer focus-ring active:scale-[0.98] transition-transform"
       >
         <img
           src={project.currentData}
           alt={project.name}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
           style={{
             backgroundImage:
@@ -64,13 +75,15 @@ export function ProjectCard({
           )}
           <p className="text-[11px] text-white/50 mt-0.5">{timeAgo(project.updatedAt)}</p>
         </div>
-      </button>
+      </div>
       <button
+        type="button"
+        aria-label="Project actions"
         onClick={(e) => {
           e.stopPropagation()
           setMenuOpen((v) => !v)
         }}
-        className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/50 backdrop-blur flex items-center justify-center text-white/90"
+        className="absolute top-2 right-2 focus-ring w-7 h-7 rounded-lg bg-black/50 backdrop-blur flex items-center justify-center text-white/90"
       >
         <MoreVertical size={14} />
       </button>

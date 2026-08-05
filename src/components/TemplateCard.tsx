@@ -26,9 +26,18 @@ export function TemplateCard({ template, onClick, compact = false }: Props) {
     : 'aspect-square'
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(template)}
-      className="group relative w-full text-left active:scale-[0.97] transition-transform duration-150"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick(template)
+        }
+      }}
+      aria-label={`Open template ${template.name}`}
+      className="group relative w-full cursor-pointer text-left rounded-2xl focus-ring active:scale-[0.97] transition-transform duration-150"
     >
       {/* Preview card */}
       <div
@@ -62,8 +71,10 @@ export function TemplateCard({ template, onClick, compact = false }: Props) {
 
         {/* Fav button */}
         <button
+          type="button"
           onClick={handleFav}
-          className="absolute top-2 right-2 w-7 h-7 rounded-xl bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity"
+          aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
+          className="absolute top-2 right-2 focus-ring w-7 h-7 rounded-xl bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity"
         >
           <Heart
             size={13}
@@ -82,6 +93,6 @@ export function TemplateCard({ template, onClick, compact = false }: Props) {
           <p className="text-[11px] text-white/45 mt-0.5 truncate">{template.description}</p>
         </div>
       )}
-    </button>
+    </div>
   )
 }

@@ -40,7 +40,7 @@ export function Tools() {
   return (
     <div className="pb-28">
       <TopBar title="AI Tools" subtitle="Pick a tool to start editing" />
-      <div className="px-5 grid grid-cols-2 gap-3 mt-2">
+      <div className="px-5 grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 items-stretch auto-rows-fr">
         {TOOLS.map((tool) => (
           <ToolCard key={tool.id} tool={tool} to={`/tools/${tool.id}`} />
         ))}
