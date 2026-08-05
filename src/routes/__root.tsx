@@ -145,7 +145,9 @@ function RootComponent() {
           }
         >
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
+          <div key={fullBleed ? "workspace" : pathname} className="route-enter">
+            <Outlet />
+          </div>
           {fullBleed ? (
             <div className="lg:hidden">
               <BottomNav />
@@ -156,6 +158,19 @@ function RootComponent() {
 
         </div>
       </div>
+      <Toaster
+        position="top-center"
+        theme="dark"
+        toastOptions={{
+          style: {
+            background: "rgba(18,18,29,0.92)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#f4f4f8",
+            backdropFilter: "blur(20px)",
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }
+
