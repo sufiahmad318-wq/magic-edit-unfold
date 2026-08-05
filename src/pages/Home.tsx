@@ -108,7 +108,7 @@ export function Home() {
             See all <ArrowRight size={12} />
           </button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-stretch auto-rows-fr">
           {TOOLS.map((tool, i) => (
             <div key={tool.id} className={`delay-${Math.min(i + 1, 5)}`}>
               <ToolCard tool={tool} to={`/tools/${tool.id}`} />
