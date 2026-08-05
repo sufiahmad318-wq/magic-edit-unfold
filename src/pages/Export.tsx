@@ -158,10 +158,19 @@ export function Export() {
         requestAnimationFrame(step)
       })
 
-    await tick(35, 0, 300)
-    const encoded = await encodeExport(sourceCanvas, options)
-    await tick(80, 1, 260)
-    await tick(100, 2, 220)
+    let encoded: EncodedExport
+    try {
+      await tick(35, 0, 300)
+      encoded = await encodeExport(sourceCanvas, options)
+      await tick(80, 1, 260)
+      await tick(100, 2, 220)
+    } catch {
+      setExporting(false)
+      setProgress(0)
+      setStageIndex(0)
+      setToast('Export failed \u2014 try a lower resolution or a different format')
+      return
+    }
 
     updateSettings({
       lastExportFormat: format,
@@ -184,7 +193,11 @@ export function Export() {
       dataUrl: encoded.dataUrl,
       createdAt: Date.now(),
     }
-    setRecentExports(addExportRecord(record))
+    try {
+      setRecentExports(addExportRecord(record))
+    } catch {
+      setToast('Export saved, but history couldn\u2019t be stored (storage full)')
+    }
 
     setExporting(false)
     setResult(encoded)
