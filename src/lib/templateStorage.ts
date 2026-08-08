@@ -1,3 +1,4 @@
+import { ls } from './safeStorage'
 const FAVORITES_KEY = 'magic-edit-ai:template-favorites'
 const RECENTS_KEY   = 'magic-edit-ai:template-recents'
 const PACKS_KEY     = 'magic-edit-ai:downloaded-packs'
@@ -6,7 +7,7 @@ const MAX_RECENTS = 12
 
 function readStringArray(key: string): string[] {
   try {
-    const raw = localStorage.getItem(key)
+    const raw = ls.getItem(key)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? (parsed as string[]) : []
@@ -17,7 +18,7 @@ function readStringArray(key: string): string[] {
 
 function writeStringArray(key: string, arr: string[]): void {
   try {
-    localStorage.setItem(key, JSON.stringify(arr))
+    ls.setItem(key, JSON.stringify(arr))
   } catch {
     // Best-effort — favorites/recents are non-critical.
   }
