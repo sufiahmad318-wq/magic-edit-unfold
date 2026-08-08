@@ -14,7 +14,7 @@ import {
 import { createProjectFromFile } from '../lib/projectActions'
 import {
   applyEnhance, applyFilterPreset, autoEnhanceSettings, canvasFromImage, canvasToDataUrl,
-  cloneCanvas, FILTER_PRESETS, inpaint, loadImage, removeBackground, type EnhanceSettings,
+  cloneCanvas, FILTER_PRESETS, inpaint, loadImage, maskHasContent, removeBackground, type EnhanceSettings,
 } from '../lib/imageEffects'
 import {
   ASPECT_PRESETS, cropCanvas, drawSticker, drawText, flattenLayer, FONT_FAMILIES, RESIZE_PRESETS,
@@ -23,6 +23,7 @@ import {
 } from '../lib/workspaceEffects'
 import { canUseFileShare, dataUrlToFile, shareFile } from '../lib/share'
 import type { Project } from '../types'
+import { toast } from 'sonner'
 
 type WsTool =
   | 'enhance' | 'background-remover' | 'object-remover' | 'magic-eraser'
@@ -278,13 +279,18 @@ export function Workspace() {
 
   const handleSave = () => {
     if (!baseCanvas || !project) return
-    const dataUrl = canvasToDataUrl(baseCanvas)
-    const updated: Project = { ...project, currentData: dataUrl, updatedAt: Date.now() }
-    saveProject(updated)
-    addVersion(project.id, dataUrl, 'Workspace save')
-    setProject(updated)
-    setSaved(true)
-    clearDraft(project.id)
+    try {
+      const dataUrl = canvasToDataUrl(baseCanvas)
+      const updated: Project = { ...project, currentData: dataUrl, updatedAt: Date.now() }
+      saveProject(updated)
+      addVersion(project.id, dataUrl, 'Workspace save')
+      setProject(updated)
+      setSaved(true)
+      clearDraft(project.id)
+      toast.success('Project saved')
+    } catch {
+      toast.error('Could not save — your device storage may be full')
+    }
   }
 
   const handleReset = () => {
@@ -292,10 +298,22 @@ export function Workspace() {
     loadInto(project.originalData).then(() => setSaved(false))
   }
 
-  const withBusy = async (fn: () => HTMLCanvasElement) => {
+  /**
+   * Runs a canvas operation behind the busy overlay. Blocks duplicate runs and
+   * always clears the overlay, so a failure can never leave the user stuck.
+   */
+  const withBusy = async (label: string, fn: () => HTMLCanvasElement) => {
+    if (busy) return
     setBusy(true)
     await new Promise((r) => setTimeout(r, 30))
-    try { commitCanvas(fn()) } finally { setBusy(false) }
+    try {
+      commitCanvas(fn())
+      toast.success(`${label} applied`)
+    } catch {
+      toast.error(`${label} failed on this image. Try again or reset.`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   /* --------------------------------- mask --------------------------------- */
@@ -374,7 +392,7 @@ export function Workspace() {
   const applyDraw = () => {
     const layer = drawLayerRef.current
     if (!baseCanvas || !layer || !drawDirty) return
-    void withBusy(() => flattenLayer(baseCanvas, layer))
+    void withBusy('Drawing', () => flattenLayer(baseCanvas, layer))
   }
 
 
@@ -386,28 +404,32 @@ export function Workspace() {
 
   const applyEnhanceNow = () => {
     if (!baseCanvas) return
-    void withBusy(() => applyEnhance(baseCanvas, enhanceSettings))
+    void withBusy('Enhance', () => applyEnhance(baseCanvas, enhanceSettings))
   }
 
   const applyBackgroundRemoval = () => {
     if (!baseCanvas) return
-    void withBusy(() => removeBackground(baseCanvas, tolerance))
+    void withBusy('Background removal', () => removeBackground(baseCanvas, tolerance))
   }
 
   const applyInpaint = () => {
     if (!baseCanvas || !maskRef.current) return
     const mask = maskRef.current
-    void withBusy(() => inpaint(baseCanvas, mask, tool === 'magic-eraser' ? 140 : 220))
+    if (!maskHasContent(mask)) {
+      toast.error('Brush over the area you want removed first')
+      return
+    }
+    void withBusy(tool === 'magic-eraser' ? 'Magic Eraser' : 'Object removal', () => inpaint(baseCanvas, mask, tool === 'magic-eraser' ? 140 : 220))
   }
 
   const applyCrop = () => {
     if (!baseCanvas) return
-    void withBusy(() => cropCanvas(baseCanvas, crop))
+    void withBusy('Crop', () => cropCanvas(baseCanvas, crop))
   }
 
   const applyResize = () => {
     if (!baseCanvas || resizeDims.w < 1 || resizeDims.h < 1) return
-    void withBusy(() => resizeCanvas(baseCanvas, resizeDims.w, resizeDims.h))
+    void withBusy('Resize', () => resizeCanvas(baseCanvas, resizeDims.w, resizeDims.h))
   }
 
   const setResizeWidth = (w: number) => {
@@ -426,11 +448,22 @@ export function Workspace() {
     if (!baseCanvas) return
     setShareState('sharing')
     const filename = `${project?.name ?? 'magicedit'}.png`
-    const file = dataUrlToFile(canvasToDataUrl(baseCanvas), filename, 'image/png')
-    if (!canUseFileShare(file)) { setShareState('unsupported'); return }
-    const result = await shareFile(file, project?.name ?? 'MagicEdit AI')
-    setShareState(result === 'shared' ? 'done' : 'idle')
-    setTimeout(() => setShareState('idle'), 2000)
+    try {
+      const file = dataUrlToFile(canvasToDataUrl(baseCanvas), filename, 'image/png')
+      if (!canUseFileShare(file)) {
+        setShareState('unsupported')
+        toast.error('Sharing isn\u2019t supported here — use Download instead')
+        setTimeout(() => setShareState('idle'), 2500)
+        return
+      }
+      const result = await shareFile(file, project?.name ?? 'MagicEdit AI')
+      setShareState(result === 'shared' ? 'done' : 'idle')
+    } catch {
+      setShareState('idle')
+      toast.error('Sharing failed. Try Download instead.')
+    } finally {
+      setTimeout(() => setShareState('idle'), 2000)
+    }
   }
 
 
@@ -444,30 +477,43 @@ export function Workspace() {
     if (!baseCanvas) return
     const preset = FILTER_PRESETS.find((p) => p.id === activeFilter)
     if (!preset || preset.css === 'none') return
-    void withBusy(() => applyFilterPreset(baseCanvas, preset.css))
+    void withBusy('Filter', () => applyFilterPreset(baseCanvas, preset.css))
   }
 
   const applyText = () => {
-    if (!baseCanvas || !text.text.trim()) return
-    void withBusy(() => drawText(baseCanvas, text))
+    if (!baseCanvas) return
+    if (!text.text.trim()) {
+      toast.error('Type some text first')
+      return
+    }
+    void withBusy('Text', () => drawText(baseCanvas, text))
   }
 
   const applySticker = () => {
     if (!baseCanvas) return
-    void withBusy(() => drawSticker(baseCanvas, sticker))
+    void withBusy('Sticker', () => drawSticker(baseCanvas, sticker))
   }
 
   const quickDownload = () => {
     if (!baseCanvas) return
-    const a = document.createElement('a')
-    a.href = canvasToDataUrl(baseCanvas)
-    a.download = `${project?.name ?? 'magicedit'}.png`
-    a.click()
+    try {
+      const a = document.createElement('a')
+      a.href = canvasToDataUrl(baseCanvas)
+      a.download = `${project?.name ?? 'magicedit'}.png`
+      a.click()
+      toast.success('Download started')
+    } catch {
+      toast.error('Could not prepare the download')
+    }
   }
 
   const handleUpload = async (file: File) => {
-    const created = await createProjectFromFile(file)
-    navigate(`/workspace/${created.id}?tool=${tool}`, { replace: true })
+    try {
+      const created = await createProjectFromFile(file)
+      navigate(`/workspace/${created.id}?tool=${tool}`, { replace: true })
+    } catch {
+      toast.error('We couldn\u2019t open that image. Try a JPG or PNG.')
+    }
   }
 
   /* --------------------------- overlay dragging --------------------------- */
