@@ -44,7 +44,7 @@ export function Tools() {
   if (toolId && !activeTool) {
     return (
       <div className="pb-28">
-        <TopBar title="Tool not found" subtitle="That tool doesn\u2019t exist" onBack />
+        <TopBar title="Tool not found" subtitle={'That tool does not exist'} onBack />
         <div className="px-5 mt-2">
           <div className="glass rounded-2xl py-12 px-6 text-center animate-fade-up">
             <p className="text-sm text-white/60">We couldn&rsquo;t find that tool.</p>
