@@ -1,3 +1,4 @@
+import { ls } from './safeStorage'
 import type { BackupRecord, BackupSettings, Project } from '../types'
 import { loadProjects, saveProject } from './storage'
 
@@ -18,7 +19,7 @@ const DEFAULT_BACKUP_SETTINGS: BackupSettings = {
 
 export function getBackupSettings(): BackupSettings {
   try {
-    const raw = localStorage.getItem(BACKUP_SETTINGS_KEY)
+    const raw = ls.getItem(BACKUP_SETTINGS_KEY)
     if (!raw) return { ...DEFAULT_BACKUP_SETTINGS }
     return { ...DEFAULT_BACKUP_SETTINGS, ...(JSON.parse(raw) as Partial<BackupSettings>) }
   } catch {
@@ -28,7 +29,7 @@ export function getBackupSettings(): BackupSettings {
 
 export function updateBackupSettings(patch: Partial<BackupSettings>): BackupSettings {
   const next = { ...getBackupSettings(), ...patch }
-  localStorage.setItem(BACKUP_SETTINGS_KEY, JSON.stringify(next))
+  ls.setItem(BACKUP_SETTINGS_KEY, JSON.stringify(next))
   return next
 }
 
@@ -36,7 +37,7 @@ export function updateBackupSettings(patch: Partial<BackupSettings>): BackupSett
 
 function loadBackupIndex(): BackupRecord[] {
   try {
-    const raw = localStorage.getItem(BACKUP_INDEX_KEY)
+    const raw = ls.getItem(BACKUP_INDEX_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as BackupRecord[]
     return Array.isArray(parsed) ? parsed.sort((a, b) => b.createdAt - a.createdAt) : []
@@ -47,7 +48,7 @@ function loadBackupIndex(): BackupRecord[] {
 
 function saveBackupIndex(records: BackupRecord[]): void {
   try {
-    localStorage.setItem(BACKUP_INDEX_KEY, JSON.stringify(records))
+    ls.setItem(BACKUP_INDEX_KEY, JSON.stringify(records))
   } catch {
     // Non-critical — skip
   }
@@ -64,7 +65,7 @@ export function createLocalBackup(label = 'Manual backup'): BackupRecord | null 
   const sizeBytes = new Blob([payload]).size
 
   try {
-    localStorage.setItem(BACKUP_DATA_PREFIX + id, payload)
+    ls.setItem(BACKUP_DATA_PREFIX + id, payload)
   } catch {
     return null // quota exceeded — silently fail
   }
@@ -81,7 +82,7 @@ export function createLocalBackup(label = 'Manual backup'): BackupRecord | null 
   const index = [record, ...loadBackupIndex()].slice(0, MAX_LOCAL_BACKUPS)
   const pruned = loadBackupIndex().slice(MAX_LOCAL_BACKUPS - 1)
   for (const old of pruned) {
-    localStorage.removeItem(BACKUP_DATA_PREFIX + old.id)
+    ls.removeItem(BACKUP_DATA_PREFIX + old.id)
   }
   saveBackupIndex(index)
 
@@ -93,13 +94,13 @@ export function listLocalBackups(): BackupRecord[] {
 }
 
 export function deleteLocalBackup(id: string): void {
-  localStorage.removeItem(BACKUP_DATA_PREFIX + id)
+  ls.removeItem(BACKUP_DATA_PREFIX + id)
   saveBackupIndex(loadBackupIndex().filter((r) => r.id !== id))
 }
 
 export function restoreFromLocalBackup(id: string): Project[] | null {
   try {
-    const raw = localStorage.getItem(BACKUP_DATA_PREFIX + id)
+    const raw = ls.getItem(BACKUP_DATA_PREFIX + id)
     if (!raw) return null
     const projects = JSON.parse(raw) as Project[]
     if (!Array.isArray(projects)) return null

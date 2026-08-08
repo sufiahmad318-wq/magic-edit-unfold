@@ -1,3 +1,4 @@
+import { ls } from './safeStorage'
 import type { AppSettings, ExportRecord, Project, ProjectVersion, ToolId } from '../types'
 
 const PROJECTS_KEY = 'magic-edit-ai:projects'
@@ -15,7 +16,7 @@ function normalizeProject(p: Project): Project {
 
 export function loadProjects(): Project[] {
   try {
-    const raw = localStorage.getItem(PROJECTS_KEY)
+    const raw = ls.getItem(PROJECTS_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as Project[]
     return Array.isArray(parsed) ? parsed.map(normalizeProject).sort((a, b) => b.updatedAt - a.updatedAt) : []
@@ -25,7 +26,7 @@ export function loadProjects(): Project[] {
 }
 
 function persist(projects: Project[]) {
-  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects))
+  ls.setItem(PROJECTS_KEY, JSON.stringify(projects))
 }
 
 /** Writes JSON to localStorage, pruning array entries via `shrink` and retrying if the quota is exceeded. */
@@ -33,7 +34,7 @@ function safeWrite<T>(key: string, value: T, shrink: (value: T) => T | null): bo
   let current = value
   for (let attempt = 0; attempt < 6; attempt++) {
     try {
-      localStorage.setItem(key, JSON.stringify(current))
+      ls.setItem(key, JSON.stringify(current))
       return true
     } catch (err) {
       if (!(err instanceof DOMException) || (err.name !== 'QuotaExceededError' && err.code !== 22)) throw err
@@ -180,28 +181,28 @@ export function deleteVersion(projectId: string, versionId: string): Project | n
 }
 
 export function setLastProjectId(id: string) {
-  localStorage.setItem(LAST_PROJECT_KEY, id)
+  ls.setItem(LAST_PROJECT_KEY, id)
 }
 
 export function getLastProjectId(): string | null {
-  return localStorage.getItem(LAST_PROJECT_KEY)
+  return ls.getItem(LAST_PROJECT_KEY)
 }
 
 export function clearLastProjectId() {
-  localStorage.removeItem(LAST_PROJECT_KEY)
+  ls.removeItem(LAST_PROJECT_KEY)
 }
 
 export function clearAllData() {
   const projects = loadProjects()
-  localStorage.removeItem(PROJECTS_KEY)
-  localStorage.removeItem(LAST_PROJECT_KEY)
+  ls.removeItem(PROJECTS_KEY)
+  ls.removeItem(LAST_PROJECT_KEY)
   for (const p of projects) clearDraft(p.id)
 }
 
 export function storageBytesUsed(): number {
   let total = 0
   for (const key of [PROJECTS_KEY, EXPORTS_KEY, SETTINGS_KEY]) {
-    total += new Blob([localStorage.getItem(key) || '']).size
+    total += new Blob([ls.getItem(key) || '']).size
   }
   return total
 }
@@ -218,7 +219,7 @@ export interface ProjectDraft {
 
 export function saveDraft(projectId: string, draft: ProjectDraft) {
   try {
-    localStorage.setItem(DRAFT_PREFIX + projectId, JSON.stringify(draft))
+    ls.setItem(DRAFT_PREFIX + projectId, JSON.stringify(draft))
   } catch {
     // Drafts are best-effort; never let this crash the editor.
   }
@@ -226,7 +227,7 @@ export function saveDraft(projectId: string, draft: ProjectDraft) {
 
 export function loadDraft(projectId: string): ProjectDraft | null {
   try {
-    const raw = localStorage.getItem(DRAFT_PREFIX + projectId)
+    const raw = ls.getItem(DRAFT_PREFIX + projectId)
     return raw ? (JSON.parse(raw) as ProjectDraft) : null
   } catch {
     return null
@@ -234,7 +235,7 @@ export function loadDraft(projectId: string): ProjectDraft | null {
 }
 
 export function clearDraft(projectId: string) {
-  localStorage.removeItem(DRAFT_PREFIX + projectId)
+  ls.removeItem(DRAFT_PREFIX + projectId)
 }
 
 // --- App-wide settings (auto-save, remembered export preferences) ---
@@ -248,7 +249,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export function getSettings(): AppSettings {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
+    const raw = ls.getItem(SETTINGS_KEY)
     if (!raw) return { ...DEFAULT_SETTINGS }
     return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) }
   } catch {
@@ -258,14 +259,14 @@ export function getSettings(): AppSettings {
 
 export function updateSettings(patch: Partial<AppSettings>): AppSettings {
   const next = { ...getSettings(), ...patch }
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(next))
+  ls.setItem(SETTINGS_KEY, JSON.stringify(next))
   return next
 }
 
 // --- Recent exports ---
 export function loadExportRecords(): ExportRecord[] {
   try {
-    const raw = localStorage.getItem(EXPORTS_KEY)
+    const raw = ls.getItem(EXPORTS_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as ExportRecord[]
     return Array.isArray(parsed) ? parsed.sort((a, b) => b.createdAt - a.createdAt) : []
@@ -293,10 +294,10 @@ export function addExportRecord(record: ExportRecord): ExportRecord[] {
 
 export function deleteExportRecord(id: string): ExportRecord[] {
   const records = loadExportRecords().filter((r) => r.id !== id)
-  localStorage.setItem(EXPORTS_KEY, JSON.stringify(records))
+  ls.setItem(EXPORTS_KEY, JSON.stringify(records))
   return records
 }
 
 export function clearExportRecords() {
-  localStorage.removeItem(EXPORTS_KEY)
+  ls.removeItem(EXPORTS_KEY)
 }

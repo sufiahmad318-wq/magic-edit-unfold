@@ -425,3 +425,14 @@ export function replaceColor(source: HTMLCanvasElement, maskCanvas: HTMLCanvasEl
   ctx.putImageData(imageData, 0, 0)
   return out
 }
+
+/** True when the mask layer has at least one painted (non-transparent) pixel. */
+export function maskHasContent(maskCanvas: HTMLCanvasElement): boolean {
+  const ctx = maskCanvas.getContext('2d')
+  if (!ctx || maskCanvas.width === 0 || maskCanvas.height === 0) return false
+  const { data } = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height)
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] > 8) return true
+  }
+  return false
+}

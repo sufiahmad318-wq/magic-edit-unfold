@@ -57,12 +57,15 @@ import {
   FILTER_PRESETS,
   inpaint,
   loadImage,
+  maskHasContent,
   removeBackground,
   replaceColor,
   type EnhanceSettings,
 } from '../lib/imageEffects'
 import type { Project, ToolId } from '../types'
 import { TOOLS } from '../types'
+import { toast } from 'sonner'
+import { Spinner } from '../components/Loaders'
 
 const REPLACE_COLORS = ['#8b5cf6', '#3b82f6', '#22d3ee', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#f8fafc', '#111827']
 
@@ -116,6 +119,7 @@ export function Editor() {
   const [baseCanvas, setBaseCanvas] = useState<HTMLCanvasElement | null>(null)
   const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null)
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [saved, setSaved] = useState(true)
   const [compareMode, setCompareMode] = useState(false)
   const [history, setHistory] = useState<HistoryState>({ items: [], index: -1 })
@@ -258,8 +262,16 @@ export function Editor() {
   const activeMeta = useMemo(() => TOOLS.find((t) => t.id === tool)!, [tool])
 
   const handleReplace = async (file: File) => {
-    const newProject = await createProjectFromFile(file)
-    navigate(`/editor/${newProject.id}?tool=${tool}`, { replace: true })
+    if (uploading) return
+    setUploading(true)
+    try {
+      const newProject = await createProjectFromFile(file)
+      navigate(`/editor/${newProject.id}?tool=${tool}`, { replace: true })
+    } catch {
+      toast.error('We couldn\u2019t open that image. Try a JPG or PNG.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const persist = (dataUrl: string) => {
@@ -329,58 +341,85 @@ export function Editor() {
   const undo = () => goToHistory(history.index - 1)
   const redo = () => goToHistory(history.index + 1)
 
+  /**
+   * Runs a synchronous canvas operation behind the busy overlay. Guarantees the
+   * overlay is always cleared (even on failure) and blocks duplicate runs.
+   */
+  const runOperation = (label: string, work: () => HTMLCanvasElement | null, delay = 60) => {
+    if (busy || !baseCanvas) return
+    setBusy(true)
+    setTimeout(() => {
+      try {
+        const result = work()
+        if (result) {
+          commitCanvas(result)
+          toast.success(`${label} applied`)
+        }
+      } catch {
+        toast.error(`${label} failed on this image. Try again or reset.`)
+      } finally {
+        setBusy(false)
+      }
+    }, delay)
+  }
+
   const runAutoEnhance = () => {
-    if (!baseCanvas) return
-    const settings = autoEnhanceSettings(baseCanvas)
-    const result = applyEnhance(baseCanvas, settings)
-    commitCanvas(result)
-    setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
+    runOperation('Auto Enhance', () => {
+      const settings = autoEnhanceSettings(baseCanvas!)
+      const result = applyEnhance(baseCanvas!, settings)
+      setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
+      return result
+    })
   }
 
   const applyEnhanceManual = () => {
-    if (!previewCanvas) return
+    if (busy || !previewCanvas) return
     commitCanvas(previewCanvas)
     setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
+    toast.success('Adjustments applied')
   }
 
   const runBackgroundRemoval = () => {
-    if (!baseCanvas) return
-    setBusy(true)
-    setTimeout(() => {
-      const result = removeBackground(baseCanvas, tolerance)
-      commitCanvas(result)
-      setBusy(false)
-    }, 150)
+    runOperation('Background removal', () => removeBackground(baseCanvas!, tolerance), 150)
   }
 
   const runInpaint = () => {
-    if (!baseCanvas || !maskCanvasRef.current) return
-    setBusy(true)
-    setTimeout(() => {
-      const result = inpaint(baseCanvas, maskCanvasRef.current!)
-      commitCanvas(result)
+    const mask = maskCanvasRef.current
+    if (!mask || !maskHasContent(mask)) {
+      toast.error('Brush over the area you want removed first')
+      return
+    }
+    const label = tool === 'magic-eraser' ? 'Magic Eraser' : 'Object removal'
+    runOperation(label, () => {
+      const result = inpaint(baseCanvas!, mask)
       clearMask()
-      setBusy(false)
-    }, 50)
+      return result
+    })
   }
 
   const runReplace = () => {
-    if (!baseCanvas || !maskCanvasRef.current) return
-    setBusy(true)
-    setTimeout(() => {
-      const result = replaceColor(baseCanvas, maskCanvasRef.current!, replaceColorHex)
-      commitCanvas(result)
+    const mask = maskCanvasRef.current
+    if (!mask || !maskHasContent(mask)) {
+      toast.error('Brush over the area you want recolored first')
+      return
+    }
+    runOperation('AI Replace', () => {
+      const result = replaceColor(baseCanvas!, mask, replaceColorHex)
       clearMask()
-      setBusy(false)
-    }, 50)
+      return result
+    })
   }
 
   const applyFilter = (presetId: string, css: string) => {
-    if (!baseCanvas) return
-    const result = applyFilterPreset(baseCanvas, css)
-    commitCanvas(result)
-    setLastAppliedFilter(presetId)
+    if (busy || !baseCanvas) return
+    try {
+      commitCanvas(applyFilterPreset(baseCanvas, css))
+      setLastAppliedFilter(presetId)
+    } catch {
+      toast.error('That filter could not be applied')
+    }
   }
+
 
   const clearMask = () => {
     const mask = maskCanvasRef.current
@@ -393,7 +432,14 @@ export function Editor() {
     if (baseCanvas) setPreviewCanvas(cloneCanvas(baseCanvas))
   }
 
-  const handleSave = () => commitSave('Manual save')
+  const handleSave = () => {
+    try {
+      commitSave('Manual save')
+      toast.success('Project saved')
+    } catch {
+      toast.error('Could not save — your device storage may be full')
+    }
+  }
 
   const toggleAutoSave = () => {
     const next = !autoSaveEnabled
@@ -501,7 +547,7 @@ export function Editor() {
               objects, replace colors and apply looks.
             </p>
             <div className="w-full mt-6">
-              <UploadDropzone onFile={handleReplace} />
+              <UploadDropzone onFile={handleReplace} busy={uploading} />
             </div>
           </div>
         </div>
@@ -587,7 +633,9 @@ export function Editor() {
               {busy && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-sm text-white/90">
-                    <Icon size={16} className="animate-pulse" /> Processing…
+                    <Spinner className="w-4 h-4" />
+                    <Icon size={15} className="animate-pulse" />
+                    <span>Processing…</span>
                   </div>
                 </div>
               )}
@@ -599,7 +647,8 @@ export function Editor() {
               <div className="space-y-4">
                 <button
                   onClick={runAutoEnhance}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-medium active:scale-[0.99] transition-transform"
+                  disabled={busy}
+                  className="w-full disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-medium active:scale-[0.99] transition-transform"
                 >
                   <Sparkles size={15} /> Auto Enhance
                 </button>
@@ -630,7 +679,7 @@ export function Editor() {
                 ))}
                 <button
                   onClick={applyEnhanceManual}
-                  disabled={Object.values(enhanceSettings).every((v) => v === 0)}
+                  disabled={busy || Object.values(enhanceSettings).every((v) => v === 0)}
                   className="w-full py-2.5 rounded-xl bg-white text-black text-sm font-semibold disabled:opacity-30 active:scale-[0.99] transition-transform"
                 >
                   Apply adjustments
@@ -656,7 +705,8 @@ export function Editor() {
                 </div>
                 <button
                   onClick={runBackgroundRemoval}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-sm font-medium active:scale-[0.99] transition-transform"
+                  disabled={busy}
+                  className="w-full disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-sm font-medium active:scale-[0.99] transition-transform"
                 >
                   <Scissors size={15} /> Remove Background
                 </button>
@@ -686,13 +736,15 @@ export function Editor() {
                 <div className="flex gap-2">
                   <button
                     onClick={clearMaskAndPreview}
-                    className="flex-1 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
+                    disabled={busy}
+                    className="flex-1 disabled:opacity-40 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
                   >
                     Clear brush
                   </button>
                   <button
                     onClick={runInpaint}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r ${activeMeta.gradient} active:scale-[0.99] transition-transform`}
+                    disabled={busy}
+                    className={`flex-1 disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r ${activeMeta.gradient} active:scale-[0.99] transition-transform`}
                   >
                     {tool === 'magic-eraser' ? <Wand size={15} /> : <Eraser size={15} />} Erase
                   </button>
@@ -747,13 +799,15 @@ export function Editor() {
                 <div className="flex gap-2">
                   <button
                     onClick={clearMaskAndPreview}
-                    className="flex-1 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
+                    disabled={busy}
+                    className="flex-1 disabled:opacity-40 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
                   >
                     Clear brush
                   </button>
                   <button
                     onClick={runReplace}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-400 to-teal-500 active:scale-[0.99] transition-transform"
+                    disabled={busy}
+                    className="flex-1 disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-400 to-teal-500 active:scale-[0.99] transition-transform"
                   >
                     <Replace size={15} /> Apply
                   </button>
@@ -772,7 +826,8 @@ export function Editor() {
                     <button
                       key={preset.id}
                       onClick={() => applyFilter(preset.id, preset.css)}
-                      className="shrink-0 flex flex-col items-center gap-1.5"
+                      disabled={busy}
+                      className="shrink-0 disabled:opacity-40 flex flex-col items-center gap-1.5"
                     >
                       <span
                         className={`w-16 h-16 rounded-xl overflow-hidden ring-2 transition-all ${
