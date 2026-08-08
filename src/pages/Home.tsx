@@ -91,10 +91,11 @@ export function Home() {
             </p>
             <button
               onClick={() => navigate('/editor')}
-              className="mt-5 inline-flex items-center gap-2 bg-white text-[#1a1030] font-display font-semibold text-sm px-7 py-3.5 rounded-2xl animate-cta-glow active:scale-[0.97] transition-transform"
+              disabled={uploading}
+              className="mt-5 disabled:opacity-60 inline-flex items-center gap-2 bg-white text-[#1a1030] font-display font-semibold text-sm px-7 py-3.5 rounded-2xl animate-cta-glow active:scale-[0.97] transition-transform"
             >
               {uploading ? <Spinner className="w-[17px] h-[17px] border-[#1a1030]/25 border-t-[#1a1030]" /> : <Wand2 size={17} strokeWidth={2.5} />}
-              Start Editing
+              {uploading ? 'Opening…' : 'Start Editing'}
             </button>
             <p className="text-[11px] text-white/60 mt-2.5">opens the full editor workspace</p>
           </div>

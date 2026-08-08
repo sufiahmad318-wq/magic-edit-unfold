@@ -119,6 +119,7 @@ export function Editor() {
   const [baseCanvas, setBaseCanvas] = useState<HTMLCanvasElement | null>(null)
   const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null)
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [saved, setSaved] = useState(true)
   const [compareMode, setCompareMode] = useState(false)
   const [history, setHistory] = useState<HistoryState>({ items: [], index: -1 })
@@ -261,8 +262,16 @@ export function Editor() {
   const activeMeta = useMemo(() => TOOLS.find((t) => t.id === tool)!, [tool])
 
   const handleReplace = async (file: File) => {
-    const newProject = await createProjectFromFile(file)
-    navigate(`/editor/${newProject.id}?tool=${tool}`, { replace: true })
+    if (uploading) return
+    setUploading(true)
+    try {
+      const newProject = await createProjectFromFile(file)
+      navigate(`/editor/${newProject.id}?tool=${tool}`, { replace: true })
+    } catch {
+      toast.error('We couldn\u2019t open that image. Try a JPG or PNG.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const persist = (dataUrl: string) => {
@@ -423,7 +432,14 @@ export function Editor() {
     if (baseCanvas) setPreviewCanvas(cloneCanvas(baseCanvas))
   }
 
-  const handleSave = () => commitSave('Manual save')
+  const handleSave = () => {
+    try {
+      commitSave('Manual save')
+      toast.success('Project saved')
+    } catch {
+      toast.error('Could not save — your device storage may be full')
+    }
+  }
 
   const toggleAutoSave = () => {
     const next = !autoSaveEnabled
@@ -531,7 +547,7 @@ export function Editor() {
               objects, replace colors and apply looks.
             </p>
             <div className="w-full mt-6">
-              <UploadDropzone onFile={handleReplace} />
+              <UploadDropzone onFile={handleReplace} busy={uploading} />
             </div>
           </div>
         </div>
