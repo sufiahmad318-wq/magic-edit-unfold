@@ -57,12 +57,15 @@ import {
   FILTER_PRESETS,
   inpaint,
   loadImage,
+  maskHasContent,
   removeBackground,
   replaceColor,
   type EnhanceSettings,
 } from '../lib/imageEffects'
 import type { Project, ToolId } from '../types'
 import { TOOLS } from '../types'
+import { toast } from 'sonner'
+import { Spinner } from '../components/Loaders'
 
 const REPLACE_COLORS = ['#8b5cf6', '#3b82f6', '#22d3ee', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#f8fafc', '#111827']
 
@@ -614,7 +617,9 @@ export function Editor() {
               {busy && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-sm text-white/90">
-                    <Icon size={16} className="animate-pulse" /> Processing…
+                    <Spinner className="w-4 h-4" />
+                    <Icon size={15} className="animate-pulse" />
+                    <span>Processing…</span>
                   </div>
                 </div>
               )}
@@ -626,7 +631,8 @@ export function Editor() {
               <div className="space-y-4">
                 <button
                   onClick={runAutoEnhance}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-medium active:scale-[0.99] transition-transform"
+                  disabled={busy}
+                  className="w-full disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-medium active:scale-[0.99] transition-transform"
                 >
                   <Sparkles size={15} /> Auto Enhance
                 </button>
@@ -657,7 +663,7 @@ export function Editor() {
                 ))}
                 <button
                   onClick={applyEnhanceManual}
-                  disabled={Object.values(enhanceSettings).every((v) => v === 0)}
+                  disabled={busy || Object.values(enhanceSettings).every((v) => v === 0)}
                   className="w-full py-2.5 rounded-xl bg-white text-black text-sm font-semibold disabled:opacity-30 active:scale-[0.99] transition-transform"
                 >
                   Apply adjustments
@@ -683,7 +689,8 @@ export function Editor() {
                 </div>
                 <button
                   onClick={runBackgroundRemoval}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-sm font-medium active:scale-[0.99] transition-transform"
+                  disabled={busy}
+                  className="w-full disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-sm font-medium active:scale-[0.99] transition-transform"
                 >
                   <Scissors size={15} /> Remove Background
                 </button>
@@ -713,13 +720,15 @@ export function Editor() {
                 <div className="flex gap-2">
                   <button
                     onClick={clearMaskAndPreview}
-                    className="flex-1 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
+                    disabled={busy}
+                    className="flex-1 disabled:opacity-40 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
                   >
                     Clear brush
                   </button>
                   <button
                     onClick={runInpaint}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r ${activeMeta.gradient} active:scale-[0.99] transition-transform`}
+                    disabled={busy}
+                    className={`flex-1 disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r ${activeMeta.gradient} active:scale-[0.99] transition-transform`}
                   >
                     {tool === 'magic-eraser' ? <Wand size={15} /> : <Eraser size={15} />} Erase
                   </button>
@@ -774,13 +783,15 @@ export function Editor() {
                 <div className="flex gap-2">
                   <button
                     onClick={clearMaskAndPreview}
-                    className="flex-1 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
+                    disabled={busy}
+                    className="flex-1 disabled:opacity-40 py-2.5 rounded-xl glass text-sm font-medium text-white/70 active:scale-[0.99] transition-transform"
                   >
                     Clear brush
                   </button>
                   <button
                     onClick={runReplace}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-400 to-teal-500 active:scale-[0.99] transition-transform"
+                    disabled={busy}
+                    className="flex-1 disabled:opacity-40 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-400 to-teal-500 active:scale-[0.99] transition-transform"
                   >
                     <Replace size={15} /> Apply
                   </button>
@@ -799,7 +810,8 @@ export function Editor() {
                     <button
                       key={preset.id}
                       onClick={() => applyFilter(preset.id, preset.css)}
-                      className="shrink-0 flex flex-col items-center gap-1.5"
+                      disabled={busy}
+                      className="shrink-0 disabled:opacity-40 flex flex-col items-center gap-1.5"
                     >
                       <span
                         className={`w-16 h-16 rounded-xl overflow-hidden ring-2 transition-all ${
