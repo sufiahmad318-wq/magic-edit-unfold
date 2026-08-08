@@ -329,58 +329,85 @@ export function Editor() {
   const undo = () => goToHistory(history.index - 1)
   const redo = () => goToHistory(history.index + 1)
 
+  /**
+   * Runs a synchronous canvas operation behind the busy overlay. Guarantees the
+   * overlay is always cleared (even on failure) and blocks duplicate runs.
+   */
+  const runOperation = (label: string, work: () => HTMLCanvasElement | null, delay = 60) => {
+    if (busy || !baseCanvas) return
+    setBusy(true)
+    setTimeout(() => {
+      try {
+        const result = work()
+        if (result) {
+          commitCanvas(result)
+          toast.success(`${label} applied`)
+        }
+      } catch {
+        toast.error(`${label} failed on this image. Try again or reset.`)
+      } finally {
+        setBusy(false)
+      }
+    }, delay)
+  }
+
   const runAutoEnhance = () => {
-    if (!baseCanvas) return
-    const settings = autoEnhanceSettings(baseCanvas)
-    const result = applyEnhance(baseCanvas, settings)
-    commitCanvas(result)
-    setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
+    runOperation('Auto Enhance', () => {
+      const settings = autoEnhanceSettings(baseCanvas!)
+      const result = applyEnhance(baseCanvas!, settings)
+      setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
+      return result
+    })
   }
 
   const applyEnhanceManual = () => {
-    if (!previewCanvas) return
+    if (busy || !previewCanvas) return
     commitCanvas(previewCanvas)
     setEnhanceSettings({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
+    toast.success('Adjustments applied')
   }
 
   const runBackgroundRemoval = () => {
-    if (!baseCanvas) return
-    setBusy(true)
-    setTimeout(() => {
-      const result = removeBackground(baseCanvas, tolerance)
-      commitCanvas(result)
-      setBusy(false)
-    }, 150)
+    runOperation('Background removal', () => removeBackground(baseCanvas!, tolerance), 150)
   }
 
   const runInpaint = () => {
-    if (!baseCanvas || !maskCanvasRef.current) return
-    setBusy(true)
-    setTimeout(() => {
-      const result = inpaint(baseCanvas, maskCanvasRef.current!)
-      commitCanvas(result)
+    const mask = maskCanvasRef.current
+    if (!mask || !maskHasContent(mask)) {
+      toast.error('Brush over the area you want removed first')
+      return
+    }
+    const label = tool === 'magic-eraser' ? 'Magic Eraser' : 'Object removal'
+    runOperation(label, () => {
+      const result = inpaint(baseCanvas!, mask)
       clearMask()
-      setBusy(false)
-    }, 50)
+      return result
+    })
   }
 
   const runReplace = () => {
-    if (!baseCanvas || !maskCanvasRef.current) return
-    setBusy(true)
-    setTimeout(() => {
-      const result = replaceColor(baseCanvas, maskCanvasRef.current!, replaceColorHex)
-      commitCanvas(result)
+    const mask = maskCanvasRef.current
+    if (!mask || !maskHasContent(mask)) {
+      toast.error('Brush over the area you want recolored first')
+      return
+    }
+    runOperation('AI Replace', () => {
+      const result = replaceColor(baseCanvas!, mask, replaceColorHex)
       clearMask()
-      setBusy(false)
-    }, 50)
+      return result
+    })
   }
 
   const applyFilter = (presetId: string, css: string) => {
-    if (!baseCanvas) return
-    const result = applyFilterPreset(baseCanvas, css)
-    commitCanvas(result)
-    setLastAppliedFilter(presetId)
+    if (busy || !baseCanvas) return
+    try {
+      commitCanvas(applyFilterPreset(baseCanvas, css))
+      setLastAppliedFilter(presetId)
+    } catch {
+      toast.error('That filter could not be applied')
+    }
   }
+
 
   const clearMask = () => {
     const mask = maskCanvasRef.current
