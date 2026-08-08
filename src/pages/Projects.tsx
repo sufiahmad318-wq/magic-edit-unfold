@@ -16,8 +16,11 @@ export function Projects() {
   const [projects, setProjects] = useState<Project[]>([])
   const [query, setQuery] = useState('')
 
+  const [bytes, setBytes] = useState(0)
+
   useEffect(() => {
     setProjects(loadProjects())
+    setBytes(storageBytesUsed())
   }, [])
 
   const filtered = useMemo(
@@ -25,7 +28,7 @@ export function Projects() {
     [projects, query],
   )
 
-  const kb = (storageBytesUsed() / 1024).toFixed(0)
+  const kb = (bytes / 1024).toFixed(0)
 
   return (
     <div className="pb-28">
