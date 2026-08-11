@@ -708,6 +708,31 @@ export function Workspace() {
 
       </header>
 
+      {pendingDraft && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-white/5 bg-gradient-to-r from-violet-600/20 to-blue-600/10 animate-fade-up">
+          <History size={16} className="text-violet-300 shrink-0" />
+          <p className="min-w-0 flex-1 text-xs text-white/70">
+            Unfinished draft from {new Date(pendingDraft.updatedAt).toLocaleString()} found for this project.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={restoreDraft}
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 text-xs font-semibold text-white"
+            >
+              Recover draft
+            </button>
+            <button
+              onClick={discardDraft}
+              className="px-3 py-1.5 rounded-lg glass text-xs font-medium text-white/70 hover:text-white"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
+
+
       <div className="flex-1 flex min-h-0 flex-col lg:flex-row">
         {/* ---------------------------- left toolbar -------------------------- */}
         <nav
