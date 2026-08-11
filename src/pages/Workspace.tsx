@@ -678,8 +678,13 @@ export function Workspace() {
           <div className="min-w-0">
             <h1 className="truncate font-display text-sm sm:text-base font-bold">{project.name}</h1>
             <p className="truncate text-[11px] text-white/40">
-              {saved ? 'All changes saved' : 'Unsaved changes'} · {activeMeta.label}
+              {saved
+                ? 'All changes saved'
+                : autosaveAt
+                  ? `Unsaved changes · draft autosaved ${new Date(autosaveAt).toLocaleTimeString()}`
+                  : 'Unsaved changes'} · {activeMeta.label}
             </p>
+
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
