@@ -137,6 +137,9 @@ export function Workspace() {
   const [panelOpen, setPanelOpen] = useState(true)
   const [railOpen, setRailOpen] = useState(true)
   const [shareState, setShareState] = useState<'idle' | 'sharing' | 'done' | 'unsupported'>('idle')
+  const [pendingDraft, setPendingDraft] = useState<WorkspaceDraft | null>(null)
+  const [autosaveAt, setAutosaveAt] = useState<number | null>(null)
+
 
   // tool state
   const [enhanceSettings, setEnhanceSettings] = useState<EnhanceSettings>({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
