@@ -63,6 +63,7 @@ export function deleteProject(id: string): Project[] {
   persist(projects)
   if (getLastProjectId() === id) clearLastProjectId()
   clearDraft(id)
+  clearWorkspaceDraft(id)
   return projects
 }
 
@@ -196,7 +197,10 @@ export function clearAllData() {
   const projects = loadProjects()
   ls.removeItem(PROJECTS_KEY)
   ls.removeItem(LAST_PROJECT_KEY)
-  for (const p of projects) clearDraft(p.id)
+  for (const p of projects) {
+    clearDraft(p.id)
+    clearWorkspaceDraft(p.id)
+  }
 }
 
 export function storageBytesUsed(): number {
