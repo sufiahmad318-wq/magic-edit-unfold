@@ -9,8 +9,10 @@ import {
 import { UploadDropzone } from '../components/UploadDropzone'
 import { AnimatedLogo } from '../components/AnimatedLogo'
 import {
-  addVersion, clearDraft, getProject, loadProjects, saveProject, setLastProjectId,
+  addVersion, clearDraft, clearWorkspaceDraft, getProject, loadProjects, loadWorkspaceDraft,
+  saveProject, saveWorkspaceDraft, setLastProjectId, type WorkspaceDraft,
 } from '../lib/storage'
+
 import { createProjectFromFile } from '../lib/projectActions'
 import {
   applyEnhance, applyFilterPreset, autoEnhanceSettings, canvasFromImage, canvasToDataUrl,
@@ -135,6 +137,9 @@ export function Workspace() {
   const [panelOpen, setPanelOpen] = useState(true)
   const [railOpen, setRailOpen] = useState(true)
   const [shareState, setShareState] = useState<'idle' | 'sharing' | 'done' | 'unsupported'>('idle')
+  const [pendingDraft, setPendingDraft] = useState<WorkspaceDraft | null>(null)
+  const [autosaveAt, setAutosaveAt] = useState<number | null>(null)
+
 
   // tool state
   const [enhanceSettings, setEnhanceSettings] = useState<EnhanceSettings>({ brightness: 0, contrast: 0, saturation: 0, sharpen: 0 })
@@ -172,7 +177,13 @@ export function Workspace() {
     if (!id) { setProject(null); return }
     const p = getProject(id)
     setProject(p ?? null)
-    if (p) setLastProjectId(p.id)
+    if (p) {
+      setLastProjectId(p.id)
+      const draft = loadWorkspaceDraft(p.id)
+      setPendingDraft(draft && draft.updatedAt > p.updatedAt ? draft : null)
+    } else {
+      setPendingDraft(null)
+    }
   }, [params.projectId])
 
   const makeLayers = (canvas: HTMLCanvasElement) => {
@@ -188,24 +199,74 @@ export function Workspace() {
     setResizeDims({ w: canvas.width, h: canvas.height })
   }
 
-  const loadInto = (dataUrl: string) =>
+  const loadInto = (dataUrl: string, hist?: { items: string[]; index: number }) =>
     loadImage(dataUrl).then((img) => {
       const canvas = canvasFromImage(img)
       setBaseCanvas(canvas)
       setPreviewCanvas(cloneCanvas(canvas))
-      setHistory({ items: [dataUrl], index: 0 })
+      setHistory(hist ?? { items: [dataUrl], index: 0 })
       makeLayers(canvas)
       return canvas
     })
 
 
+  // Wait for the user's decision before loading anything when a newer draft exists.
   useEffect(() => {
-    if (!project) return
+    if (!project || pendingDraft) return
     let cancelled = false
     loadInto(project.currentData).then(() => { if (cancelled) return })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id])
+  }, [project?.id, pendingDraft])
+
+  const restoreDraft = () => {
+    if (!pendingDraft || !project) return
+    const draft = pendingDraft
+    loadInto(draft.dataUrl, { items: draft.historyItems, index: draft.historyIndex }).then(() => {
+      if (WS_TOOLS.some((t) => t.id === draft.tool)) setTool(draft.tool as WsTool)
+      setSaved(false)
+      setPendingDraft(null)
+      toast.success('Draft restored')
+    }).catch(() => {
+      toast.error('That draft could not be opened — starting from the saved version')
+      clearWorkspaceDraft(project.id)
+      setPendingDraft(null)
+    })
+  }
+
+  const discardDraft = () => {
+    if (!project) return
+    clearWorkspaceDraft(project.id)
+    setPendingDraft(null)
+  }
+
+  /* ------------------------------- autosave ------------------------------- */
+  // Debounced so rapid edits (sliders, brush strokes) write at most once per second.
+  const quotaWarned = useRef(false)
+  useEffect(() => {
+    if (!project || saved || pendingDraft || busy) return
+    const current = history.items[history.index]
+    if (!current) return
+    const timer = setTimeout(() => {
+      const result = saveWorkspaceDraft(project.id, {
+        dataUrl: current,
+        historyItems: history.items,
+        historyIndex: history.index,
+        tool,
+        updatedAt: Date.now(),
+      })
+      if (result === 'ok') {
+        setAutosaveAt(Date.now())
+        quotaWarned.current = false
+      } else if (result === 'quota' && !quotaWarned.current) {
+        quotaWarned.current = true
+        toast.error('Autosave paused — device storage is full. Save or export your work.')
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.items, history.index, saved, pendingDraft, busy, project?.id, tool])
+
 
   /* ------------------------------- rendering ------------------------------ */
   useEffect(() => {
@@ -287,7 +348,10 @@ export function Workspace() {
       setProject(updated)
       setSaved(true)
       clearDraft(project.id)
+      clearWorkspaceDraft(project.id)
+      setAutosaveAt(null)
       toast.success('Project saved')
+
     } catch {
       toast.error('Could not save — your device storage may be full')
     }
@@ -614,8 +678,13 @@ export function Workspace() {
           <div className="min-w-0">
             <h1 className="truncate font-display text-sm sm:text-base font-bold">{project.name}</h1>
             <p className="truncate text-[11px] text-white/40">
-              {saved ? 'All changes saved' : 'Unsaved changes'} · {activeMeta.label}
+              {saved
+                ? 'All changes saved'
+                : autosaveAt
+                  ? `Unsaved changes · draft autosaved ${new Date(autosaveAt).toLocaleTimeString()}`
+                  : 'Unsaved changes'} · {activeMeta.label}
             </p>
+
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -638,6 +707,31 @@ export function Workspace() {
         </div>
 
       </header>
+
+      {pendingDraft && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-white/5 bg-gradient-to-r from-violet-600/20 to-blue-600/10 animate-fade-up">
+          <History size={16} className="text-violet-300 shrink-0" />
+          <p className="min-w-0 flex-1 text-xs text-white/70">
+            Unfinished draft from {new Date(pendingDraft.updatedAt).toLocaleString()} found for this project.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={restoreDraft}
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 text-xs font-semibold text-white"
+            >
+              Recover draft
+            </button>
+            <button
+              onClick={discardDraft}
+              className="px-3 py-1.5 rounded-lg glass text-xs font-medium text-white/70 hover:text-white"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
+
 
       <div className="flex-1 flex min-h-0 flex-col lg:flex-row">
         {/* ---------------------------- left toolbar -------------------------- */}

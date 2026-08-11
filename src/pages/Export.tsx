@@ -211,7 +211,7 @@ export function Export() {
     setShareState('working')
     const file = dataUrlToFile(result.dataUrl, finalName(), result.mime)
     if (canUseFileShare(file)) {
-      const outcome = await shareFile(file, project?.name || 'Magic Edit AI export')
+      const outcome = await shareFile(file, project?.name || 'MagicEdit AI export')
       if (outcome === 'shared') {
         setShareState('done')
         return
@@ -229,7 +229,7 @@ export function Export() {
     if (!result) return
     setShareState('working')
     const file = dataUrlToFile(result.dataUrl, finalName(), result.mime)
-    const outcome = await shareFile(file, project?.name || 'Magic Edit AI export')
+    const outcome = await shareFile(file, project?.name || 'MagicEdit AI export')
     if (outcome === 'shared') {
       setShareState('done')
     } else if (outcome === 'cancelled') {
@@ -436,7 +436,7 @@ export function Export() {
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <p className="text-sm font-medium">Watermark</p>
-                <p className="text-[11px] text-white/40 mt-0.5">Adds a small Magic Edit AI mark</p>
+                <p className="text-[11px] text-white/40 mt-0.5">Adds a small MagicEdit AI mark</p>
               </div>
               <span
                 onClick={() => setWatermark((v) => !v)}

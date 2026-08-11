@@ -111,7 +111,138 @@ export function autoEnhanceSettings(source: HTMLCanvasElement): EnhanceSettings 
   }
 }
 
-// --- Background remover: chroma-key from sampled corner/edge colors ---
+// --- Background remover: multi-cluster edge sampling + connectivity + matting ---
+// Still 100% on-device (no model, no network). Improvements over the naive
+// single-colour chroma key:
+//  1. Border pixels are clustered into up to 3 representative background colours,
+//     so gradients / uneven lighting no longer break the key.
+//  2. Two thresholds produce a trimap: certain background, uncertain band, subject.
+//  3. Only background *connected* to the frame is cut (flood fill), so same-coloured
+//     areas inside the subject survive.
+//  4. Morphological close/open removes speckles and fills small holes.
+//  5. The uncertain band gets a soft alpha ramp plus a small box blur, which gives
+//     feathered edges instead of a hard jagged cut.
+
+type Rgb = [number, number, number]
+
+function clusterBackgroundColors(data: Uint8ClampedArray, width: number, height: number): Rgb[] {
+  const samples: Rgb[] = []
+  const stepX = Math.max(1, Math.floor(width / 96))
+  const stepY = Math.max(1, Math.floor(height / 96))
+  const band = Math.max(1, Math.round(Math.min(width, height) * 0.02))
+
+  const push = (x: number, y: number) => {
+    const i = (y * width + x) * 4
+    samples.push([data[i], data[i + 1], data[i + 2]])
+  }
+  for (let x = 0; x < width; x += stepX) {
+    for (let b = 0; b < band; b++) {
+      push(x, b)
+      push(x, height - 1 - b)
+    }
+  }
+  for (let y = 0; y < height; y += stepY) {
+    for (let b = 0; b < band; b++) {
+      push(b, y)
+      push(width - 1 - b, y)
+    }
+  }
+
+  // Greedy clustering: assign each sample to the nearest centroid within 48 units,
+  // otherwise open a new cluster (max 3 -- more than that is not a keyable background).
+  const centroids: { sum: Rgb; count: number }[] = []
+  for (const s of samples) {
+    let best = -1
+    let bestDist = Infinity
+    for (let c = 0; c < centroids.length; c++) {
+      const cen = centroids[c]
+      const cr = cen.sum[0] / cen.count
+      const cg = cen.sum[1] / cen.count
+      const cb = cen.sum[2] / cen.count
+      const d = Math.hypot(s[0] - cr, s[1] - cg, s[2] - cb)
+      if (d < bestDist) {
+        bestDist = d
+        best = c
+      }
+    }
+    if (best >= 0 && (bestDist < 48 || centroids.length >= 3)) {
+      const cen = centroids[best]
+      cen.sum[0] += s[0]
+      cen.sum[1] += s[1]
+      cen.sum[2] += s[2]
+      cen.count++
+    } else {
+      centroids.push({ sum: [s[0], s[1], s[2]], count: 1 })
+    }
+  }
+
+  // Drop clusters that barely appear on the border -- they are usually subject pixels
+  // touching the frame, and keying them would eat into the subject.
+  const total = samples.length || 1
+  return centroids
+    .filter((c) => c.count / total > 0.05)
+    .map((c) => [c.sum[0] / c.count, c.sum[1] / c.count, c.sum[2] / c.count] as Rgb)
+}
+
+/** In-place 3x3 morphological pass over a binary mask. mode 'dilate' | 'erode'. */
+function morph(mask: Uint8Array, width: number, height: number, mode: 'dilate' | 'erode'): Uint8Array {
+  const out = new Uint8Array(mask.length)
+  const target = mode === 'dilate' ? 1 : 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const p = y * width + x
+      let hit = false
+      for (let dy = -1; dy <= 1 && !hit; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx
+          const ny = y + dy
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+          if (mask[ny * width + nx] === target) {
+            hit = true
+            break
+          }
+        }
+      }
+      out[p] = hit ? target : mask[p]
+    }
+  }
+  return out
+}
+
+/** Separable box blur on an alpha channel, used to feather the cut edge. */
+function blurAlpha(alpha: Float32Array, width: number, height: number, radius: number): Float32Array {
+  if (radius < 1) return alpha
+  const tmp = new Float32Array(alpha.length)
+  const out = new Float32Array(alpha.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0
+      let n = 0
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = x + dx
+        if (nx < 0 || nx >= width) continue
+        sum += alpha[y * width + nx]
+        n++
+      }
+      tmp[y * width + x] = sum / n
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0
+      let n = 0
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = y + dy
+        if (ny < 0 || ny >= height) continue
+        sum += tmp[ny * width + x]
+        n++
+      }
+      out[y * width + x] = sum / n
+    }
+  }
+  return out
+}
+
 export function removeBackground(source: HTMLCanvasElement, tolerance: number): HTMLCanvasElement {
   const out = cloneCanvas(source)
   const ctx = out.getContext('2d')!
@@ -119,47 +250,33 @@ export function removeBackground(source: HTMLCanvasElement, tolerance: number): 
   const imageData = ctx.getImageData(0, 0, width, height)
   const { data } = imageData
 
-  const samplePoints = [
-    [0, 0],
-    [width - 1, 0],
-    [0, height - 1],
-    [width - 1, height - 1],
-    [Math.floor(width / 2), 0],
-    [0, Math.floor(height / 2)],
-  ]
-  let r = 0
-  let g = 0
-  let b = 0
-  for (const [x, y] of samplePoints) {
-    const i = (y * width + x) * 4
-    r += data[i]
-    g += data[i + 1]
-    b += data[i + 2]
-  }
-  r /= samplePoints.length
-  g /= samplePoints.length
-  b /= samplePoints.length
+  const clusters = clusterBackgroundColors(data, width, height)
+  if (clusters.length === 0) return out
 
-  const threshold = 20 + tolerance * 1.6 // tolerance 0..100
-  const mask = new Uint8Array(width * height)
+  // Two thresholds: inner (certain background) and outer (uncertain edge band).
+  const inner = 18 + tolerance * 0.9
+  const outer = inner + 18 + tolerance * 0.5
 
+  const dist = new Float32Array(width * height)
+  const candidate = new Uint8Array(width * height) // within the outer threshold
   for (let p = 0; p < width * height; p++) {
     const i = p * 4
-    const dr = data[i] - r
-    const dg = data[i + 1] - g
-    const db = data[i + 2] - b
-    const dist = Math.sqrt(dr * dr + dg * dg + db * db)
-    if (dist < threshold) mask[p] = 1
+    let best = Infinity
+    for (const [cr, cg, cb] of clusters) {
+      const d = Math.hypot(data[i] - cr, data[i + 1] - cg, data[i + 2] - cb)
+      if (d < best) best = d
+    }
+    dist[p] = best
+    if (best < outer) candidate[p] = 1
   }
 
-  // Flood fill from the four corners so only background *connected* to the
-  // edges is removed -- keeps a subject of similar color intact in the middle.
-  const visited = new Uint8Array(width * height)
+  // Keep only candidate background that is connected to the image frame.
+  const connected = new Uint8Array(width * height)
   const stack: number[] = []
   const seedIf = (x: number, y: number) => {
     const p = y * width + x
-    if (mask[p] && !visited[p]) {
-      visited[p] = 1
+    if (candidate[p] && !connected[p]) {
+      connected[p] = 1
       stack.push(p)
     }
   }
@@ -171,38 +288,49 @@ export function removeBackground(source: HTMLCanvasElement, tolerance: number): 
     seedIf(0, y)
     seedIf(width - 1, y)
   }
-
   while (stack.length) {
     const p = stack.pop()!
     const x = p % width
     const y = (p / width) | 0
-    const neighbors = [
-      [x - 1, y],
-      [x + 1, y],
-      [x, y - 1],
-      [x, y + 1],
-    ]
-    for (const [nx, ny] of neighbors) {
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const np = ny * width + nx
-      if (mask[np] && !visited[np]) {
-        visited[np] = 1
-        stack.push(np)
-      }
-    }
+    if (x > 0) seedIf(x - 1, y)
+    if (x < width - 1) seedIf(x + 1, y)
+    if (y > 0) seedIf(x, y - 1)
+    if (y < height - 1) seedIf(x, y + 1)
   }
+
+  // Cleanup: close (dilate then erode) removes pinholes in the background mask,
+  // open (erode then dilate) removes isolated background specks sitting on the subject.
+  let cleaned = morph(connected, width, height, 'dilate')
+  cleaned = morph(cleaned, width, height, 'erode')
+  cleaned = morph(cleaned, width, height, 'erode')
+  cleaned = morph(cleaned, width, height, 'dilate')
+
+  // Soft alpha: certain background -> 0, uncertain band -> ramp, subject -> 255.
+  const alpha = new Float32Array(width * height)
+  const span = Math.max(1, outer - inner)
+  for (let p = 0; p < width * height; p++) {
+    if (!cleaned[p]) {
+      alpha[p] = 255
+      continue
+    }
+    const d = dist[p]
+    if (d <= inner) alpha[p] = 0
+    else alpha[p] = Math.min(255, ((d - inner) / span) * 255)
+  }
+
+  const feather = Math.max(1, Math.round(Math.min(width, height) / 500))
+  const softened = blurAlpha(alpha, width, height, feather)
 
   for (let p = 0; p < width * height; p++) {
-    if (visited[p]) {
-      const i = p * 4
-      data[i + 3] = 0
-    }
+    // Never let the blur eat into pixels that are confidently subject.
+    const a = cleaned[p] ? softened[p] : Math.max(softened[p], 255)
+    data[p * 4 + 3] = Math.round(Math.max(0, Math.min(255, a)) * (data[p * 4 + 3] / 255))
   }
 
-  // Feather the cut edge slightly so it doesn't look jagged.
   ctx.putImageData(imageData, 0, 0)
   return out
 }
+
 
 // --- Object remover / magic eraser: iterative diffusion inpainting ---
 export function inpaint(source: HTMLCanvasElement, maskCanvas: HTMLCanvasElement, iterations = 220): HTMLCanvasElement {

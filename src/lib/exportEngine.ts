@@ -43,7 +43,7 @@ export interface ExportOptions {
 function drawWatermark(ctx: CanvasRenderingContext2D, w: number, h: number) {
   const pad = Math.max(10, Math.round(w * 0.02))
   const fontSize = Math.max(11, Math.round(w * 0.02))
-  const label = 'Magic Edit AI'
+  const label = 'MagicEdit AI'
   ctx.save()
   ctx.font = `600 ${fontSize}px Sora, ui-sans-serif, system-ui, sans-serif`
   const textWidth = ctx.measureText(label).width
