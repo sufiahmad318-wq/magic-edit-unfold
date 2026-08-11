@@ -238,6 +238,63 @@ export function clearDraft(projectId: string) {
   ls.removeItem(DRAFT_PREFIX + projectId)
 }
 
+// --- Workspace drafts: kept under a separate key so the classic editor's draft
+// (which stores its own tool ids) is never clobbered by the workspace, and vice versa. ---
+const WS_DRAFT_PREFIX = 'magic-edit-ai:ws-draft:'
+
+export interface WorkspaceDraft {
+  dataUrl: string
+  historyItems: string[]
+  historyIndex: number
+  tool: string
+  updatedAt: number
+}
+
+/** Returns 'ok' | 'quota' | 'error' so callers can surface an honest message. */
+export function saveWorkspaceDraft(projectId: string, draft: WorkspaceDraft): 'ok' | 'quota' | 'error' {
+  if (!draft.dataUrl || draft.historyItems.length === 0) return 'error'
+  const key = WS_DRAFT_PREFIX + projectId
+  // Trim history from the oldest side if the payload doesn't fit.
+  let current: WorkspaceDraft = draft
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      ls.setItem(key, JSON.stringify(current))
+      return 'ok'
+    } catch (err) {
+      const quota = err instanceof DOMException && (err.name === 'QuotaExceededError' || err.code === 22)
+      if (!quota) return 'error'
+      if (current.historyItems.length <= 1) {
+        try {
+          ls.setItem(key, JSON.stringify({ ...current, historyItems: [current.dataUrl], historyIndex: 0 }))
+          return 'ok'
+        } catch {
+          return 'quota'
+        }
+      }
+      const items = current.historyItems.slice(1)
+      current = { ...current, historyItems: items, historyIndex: Math.max(0, current.historyIndex - 1) }
+    }
+  }
+  return 'quota'
+}
+
+export function loadWorkspaceDraft(projectId: string): WorkspaceDraft | null {
+  try {
+    const raw = ls.getItem(WS_DRAFT_PREFIX + projectId)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as WorkspaceDraft
+    if (!parsed?.dataUrl || !Array.isArray(parsed.historyItems) || parsed.historyItems.length === 0) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function clearWorkspaceDraft(projectId: string) {
+  ls.removeItem(WS_DRAFT_PREFIX + projectId)
+}
+
+
 // --- App-wide settings (auto-save, remembered export preferences) ---
 const DEFAULT_SETTINGS: AppSettings = {
   autoSaveEnabled: true,
