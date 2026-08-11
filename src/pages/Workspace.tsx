@@ -348,7 +348,10 @@ export function Workspace() {
       setProject(updated)
       setSaved(true)
       clearDraft(project.id)
+      clearWorkspaceDraft(project.id)
+      setAutosaveAt(null)
       toast.success('Project saved')
+
     } catch {
       toast.error('Could not save — your device storage may be full')
     }
