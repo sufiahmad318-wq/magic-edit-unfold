@@ -9,8 +9,10 @@ import {
 import { UploadDropzone } from '../components/UploadDropzone'
 import { AnimatedLogo } from '../components/AnimatedLogo'
 import {
-  addVersion, clearDraft, getProject, loadProjects, saveProject, setLastProjectId,
+  addVersion, clearDraft, clearWorkspaceDraft, getProject, loadProjects, loadWorkspaceDraft,
+  saveProject, saveWorkspaceDraft, setLastProjectId, type WorkspaceDraft,
 } from '../lib/storage'
+
 import { createProjectFromFile } from '../lib/projectActions'
 import {
   applyEnhance, applyFilterPreset, autoEnhanceSettings, canvasFromImage, canvasToDataUrl,
