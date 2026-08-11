@@ -89,7 +89,7 @@ export function Profile() {
         <div className="glass rounded-2xl p-4 flex items-start gap-3">
           <Info size={18} className="text-white/50 mt-0.5 shrink-0" />
           <p className="text-sm text-white/60 leading-relaxed">
-            Magic Edit AI runs entirely in your browser &mdash; photos and edits are stored only on this
+            MagicEdit AI runs entirely in your browser &mdash; photos and edits are stored only on this
             device, never uploaded anywhere.
           </p>
         </div>

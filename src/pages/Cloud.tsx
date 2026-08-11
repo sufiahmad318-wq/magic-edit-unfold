@@ -214,7 +214,7 @@ export function Cloud() {
             {[
               'Tap "Export File" to download a backup bundle on this device.',
               'Transfer the .json file to your other device (email, cloud drive, etc.).',
-              'Open Magic Edit AI on the other device and tap "Restore from File".',
+              'Open MagicEdit AI on the other device and tap "Restore from File".',
             ].map((step, i) => (
               <li key={i} className="flex items-start gap-2.5">
                 <span className="w-5 h-5 rounded-full bg-white/8 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
@@ -232,7 +232,7 @@ export function Cloud() {
         <div className="glass rounded-2xl p-4 flex items-start gap-3">
           <Shield size={16} className="text-emerald-400 shrink-0 mt-0.5" />
           <p className="text-xs text-white/50 leading-relaxed">
-            All backups stay on your device. Nothing is ever uploaded to external servers — Magic Edit AI is 100% local and private.
+            All backups stay on your device. Nothing is ever uploaded to external servers — MagicEdit AI is 100% local and private.
           </p>
         </div>
       </div>
