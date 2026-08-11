@@ -177,7 +177,13 @@ export function Workspace() {
     if (!id) { setProject(null); return }
     const p = getProject(id)
     setProject(p ?? null)
-    if (p) setLastProjectId(p.id)
+    if (p) {
+      setLastProjectId(p.id)
+      const draft = loadWorkspaceDraft(p.id)
+      setPendingDraft(draft && draft.updatedAt > p.updatedAt ? draft : null)
+    } else {
+      setPendingDraft(null)
+    }
   }, [params.projectId])
 
   const makeLayers = (canvas: HTMLCanvasElement) => {
@@ -193,24 +199,74 @@ export function Workspace() {
     setResizeDims({ w: canvas.width, h: canvas.height })
   }
 
-  const loadInto = (dataUrl: string) =>
+  const loadInto = (dataUrl: string, hist?: { items: string[]; index: number }) =>
     loadImage(dataUrl).then((img) => {
       const canvas = canvasFromImage(img)
       setBaseCanvas(canvas)
       setPreviewCanvas(cloneCanvas(canvas))
-      setHistory({ items: [dataUrl], index: 0 })
+      setHistory(hist ?? { items: [dataUrl], index: 0 })
       makeLayers(canvas)
       return canvas
     })
 
 
+  // Wait for the user's decision before loading anything when a newer draft exists.
   useEffect(() => {
-    if (!project) return
+    if (!project || pendingDraft) return
     let cancelled = false
     loadInto(project.currentData).then(() => { if (cancelled) return })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id])
+  }, [project?.id, pendingDraft])
+
+  const restoreDraft = () => {
+    if (!pendingDraft || !project) return
+    const draft = pendingDraft
+    loadInto(draft.dataUrl, { items: draft.historyItems, index: draft.historyIndex }).then(() => {
+      if (WS_TOOLS.some((t) => t.id === draft.tool)) setTool(draft.tool as WsTool)
+      setSaved(false)
+      setPendingDraft(null)
+      toast.success('Draft restored')
+    }).catch(() => {
+      toast.error('That draft could not be opened — starting from the saved version')
+      clearWorkspaceDraft(project.id)
+      setPendingDraft(null)
+    })
+  }
+
+  const discardDraft = () => {
+    if (!project) return
+    clearWorkspaceDraft(project.id)
+    setPendingDraft(null)
+  }
+
+  /* ------------------------------- autosave ------------------------------- */
+  // Debounced so rapid edits (sliders, brush strokes) write at most once per second.
+  const quotaWarned = useRef(false)
+  useEffect(() => {
+    if (!project || saved || pendingDraft || busy) return
+    const current = history.items[history.index]
+    if (!current) return
+    const timer = setTimeout(() => {
+      const result = saveWorkspaceDraft(project.id, {
+        dataUrl: current,
+        historyItems: history.items,
+        historyIndex: history.index,
+        tool,
+        updatedAt: Date.now(),
+      })
+      if (result === 'ok') {
+        setAutosaveAt(Date.now())
+        quotaWarned.current = false
+      } else if (result === 'quota' && !quotaWarned.current) {
+        quotaWarned.current = true
+        toast.error('Autosave paused — device storage is full. Save or export your work.')
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.items, history.index, saved, pendingDraft, busy, project?.id, tool])
+
 
   /* ------------------------------- rendering ------------------------------ */
   useEffect(() => {
