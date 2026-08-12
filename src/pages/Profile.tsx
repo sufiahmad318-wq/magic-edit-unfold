@@ -39,7 +39,7 @@ export function Profile() {
         <AnimatedLogo size="lg" />
         <div>
           <h1 className="font-display text-xl font-bold">
-            <span className="aurora-text">Magic Edit</span> AI
+            <span className="aurora-text">MagicEdit</span> AI
           </h1>
           <p className="text-xs text-white/45 mt-0.5">Local, on-device photo editor</p>
         </div>
