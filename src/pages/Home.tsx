@@ -72,7 +72,7 @@ export function Home() {
         <div>
           <p className="text-sm text-white/50">Welcome back</p>
           <h1 className="font-display text-2xl font-bold leading-tight">
-            <span className="aurora-text">Magic Edit</span> AI
+            <span className="aurora-text">MagicEdit</span> AI
           </h1>
         </div>
       </div>
